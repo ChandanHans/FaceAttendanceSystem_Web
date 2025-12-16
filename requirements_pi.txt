@@ -1,0 +1,19 @@
+# Raspberry Pi Optimized Requirements
+flask==3.0.0
+flask-cors==4.0.0
+flask-jwt-extended==4.6.0
+werkzeug==3.0.1
+opencv-python==4.8.1.78
+numpy==1.24.3
+pillow==10.1.0
+mysql-connector-python==8.2.0
+python-dotenv==1.0.0
+scipy==1.11.4
+
+# For Raspberry Pi, install dlib manually:
+# sudo apt-get install libopenblas-dev liblapack-dev
+# pip install dlib
+
+# For face_recognition on Pi:
+# pip install face-recognition --no-deps
+# Then install dependencies manually

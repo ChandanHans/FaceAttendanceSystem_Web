@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance - Face Attendance System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">Face Attendance System</div>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/enrollment">Enrollment</a>
+            <a href="/attendance" class="active">Attendance</a>
+            <a href="/reports">Reports</a>
+            <a href="#" id="logoutBtn">Logout</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <h1>Live Attendance Monitoring</h1>
+        
+        <div class="attendance-controls">
+            <div class="form-group">
+                <label for="cameraSource">Camera Source</label>
+                <select id="cameraSource">
+                    <option value="0">Built-in Camera</option>
+                    <option value="1">External Camera 1</option>
+                    <option value="2">External Camera 2</option>
+                </select>
+            </div>
+            
+            <button class="btn btn-success" id="toggleMonitoring">Start Monitoring</button>
+        </div>
+        
+        <div class="video-section">
+            <h2>Live Feed</h2>
+            <div class="video-container">
+                <img id="videoStream" src="" alt="Video stream will appear here" />
+                <div id="videoOverlay" class="video-overlay" style="display: none; align-items: center; justify-content: center; position: absolute; inset: 0; background: rgba(0,0,0,0.4); color: #fff;">
+                    <p>Click "Start Monitoring" to begin</p>
+                </div>
+                <div id="streamStatus" class="stream-status">Not Running</div>
+            </div>
+        </div>
+        
+        <div class="status-section">
+            <h2>System Status</h2>
+            <div class="status-card">
+                <p><strong>Status:</strong> <span id="systemStatus">Stopped</span></p>
+                <p><strong>Known Faces:</strong> <span id="knownFacesCount">0</span></p>
+                <p><strong>Monitoring Since:</strong> <span id="monitoringSince">-</span></p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/attendance.js"></script>
+</body>
+</html>

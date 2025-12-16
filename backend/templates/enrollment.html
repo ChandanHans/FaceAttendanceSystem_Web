@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enrollment - Face Attendance System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">Face Attendance System</div>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/enrollment" class="active">Enrollment</a>
+            <a href="/attendance">Attendance</a>
+            <a href="/reports">Reports</a>
+            <a href="#" id="logoutBtn">Logout</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <h1>Face Enrollment</h1>
+        
+        <div class="enrollment-grid">
+            <div class="enrollment-form-section">
+                <h2>Person Details</h2>
+                
+                <div class="toggle-buttons">
+                    <button class="btn btn-toggle" id="studentBtn">Student</button>
+                    <button class="btn btn-toggle" id="staffBtn">Staff</button>
+                </div>
+                
+                <form id="enrollmentForm">
+                    <div class="form-group">
+                        <label for="personId">ID *</label>
+                        <input type="text" id="personId" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="personName">Name *</label>
+                        <input type="text" id="personName" required>
+                    </div>
+                    
+                    <div id="studentFields">
+                        <div class="form-group">
+                            <label for="course">Course *</label>
+                            <select id="course" required>
+                                <option value="">Select Course</option>
+                                <option value="MSC">MSC</option>
+                                <option value="MCA">MCA</option>
+                                <option value="MBA">MBA</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="semester">Semester *</label>
+                            <select id="semester" required>
+                                <option value="">Select Semester</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="staffFields" style="display: none;">
+                        <div class="form-group">
+                            <label for="department">Department *</label>
+                            <select id="department">
+                                <option value="">Select Department</option>
+                                <option value="IT">IT</option>
+                                <option value="Management">Management</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="startCaptureBtn">Start Capture</button>
+                </form>
+            </div>
+            
+            <div class="camera-section">
+                <h2>Face Capture</h2>
+                <p class="info-text">System will capture 5 images from different angles. Turn your head slowly to capture varied poses.</p>
+                
+                <div class="camera-container">
+                    <video id="video" autoplay></video>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                    <div id="captureStatus" class="capture-status"></div>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <p id="progressText">0 / 5 captured</p>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-success" id="completeBtn" style="display: none;">Complete Enrollment</button>
+                    <button class="btn btn-danger" id="cancelBtn" style="display: none;">Cancel</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="enrolled-list-section">
+            <h2>Enrolled Persons</h2>
+            
+            <div class="filter-bar">
+                <button class="btn btn-sm" id="showStudents">Students</button>
+                <button class="btn btn-sm" id="showStaff">Staff</button>
+                <button class="btn btn-sm" id="showAll">All</button>
+            </div>
+            
+            <table id="enrolledTable" class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Course/Dept</th>
+                        <th>Sem/Role</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="enrolledTableBody">
+                    <tr>
+                        <td colspan="5">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/enrollment.js"></script>
+</body>
+</html>

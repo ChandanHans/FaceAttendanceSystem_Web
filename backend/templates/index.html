@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Attendance System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Face Recognition Library - Client-side processing -->
+    <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.min.js"></script>
+</head>
+<body class="modern-layout">
+    <!-- Top Navigation Bar -->
+    <nav class="top-nav">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <span class="brand-icon">👤</span>
+                <span>Face Attendance</span>
+            </div>
+            <div class="nav-actions">
+                <span class="user-info" id="currentUser">Admin</span>
+                <button class="btn-icon" id="logoutBtn" title="Logout">🚪</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container - Single Page -->
+    <div class="main-container">
+        <!-- Left Sidebar - Stats & Controls -->
+        <aside class="sidebar">
+            <div class="stats-section">
+                <h3>📊 Today's Summary</h3>
+                <div class="stat-item">
+                    <span class="stat-label">Students</span>
+                    <div class="stat-detail">
+                        <span class="stat-highlight" id="studentsPresent">0</span> Present / 
+                        <span id="studentsTotal">0</span> Total
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Staff</span>
+                    <div class="stat-detail">
+                        <span class="stat-highlight" id="staffPresent">0</span> Present / 
+                        <span id="staffTotal">0</span> Total
+                    </div>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Total Enrolled</span>
+                    <span class="stat-value" id="enrolledFaces">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Status</span>
+                    <span class="status-badge" id="systemStatusBadge">●</span>
+                    <span id="systemStatus" class="stat-value">Stopped</span>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="content-area">
+            <!-- Tabbed Content: Live Feed / Enrollment / Reports -->
+            <section class="tabbed-section">
+                <div class="tab-header">
+                    <button class="tab-btn active" data-tab="monitoring">📹 Live Feed</button>
+                    <button class="tab-btn" data-tab="enrollment">👥 Enrollment</button>
+                    <button class="tab-btn" data-tab="reports">📋 Reports</button>
+                </div>
+
+                <!-- Monitoring Tab -->
+                <div class="tab-content active" id="monitoring-tab">
+                    <div class="video-section-full">
+                        <div class="section-header">
+                            <h2>📹 Live Feed</h2>
+                            <div class="monitoring-controls">
+                                <select id="cameraSource" class="select-sm">
+                                    <option value="0">Camera 1</option>
+                                    <option value="1">Camera 2</option>
+                                </select>
+                                <button class="btn btn-success" id="toggleMonitoring">Start Monitoring</button>
+                            </div>
+                        </div>
+                        <div class="video-wrapper-full">
+                            <img id="videoStream" src="/static/css/placeholder.svg" alt="Video stream" />
+                            <div class="video-overlay" id="videoOverlay">
+                                <p>Click "Start Monitoring" to begin</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enrollment Tab -->
+                <div class="tab-content" id="enrollment-tab">
+                    <div class="enrollment-container">
+                        <div class="form-panel">
+                            <div class="toggle-group">
+                                <button class="toggle-btn active" id="studentBtn">Student</button>
+                                <button class="toggle-btn" id="staffBtn">Staff</button>
+                            </div>
+
+                            <form id="enrollmentForm" class="compact-form">
+                                <input type="text" id="personId" placeholder="ID *" required>
+                                <input type="text" id="personName" placeholder="Full Name *" required>
+                                
+                                <div id="studentFields">
+                                    <select id="course" required>
+                                        <option value="">Course</option>
+                                        <option value="MSC">MSC</option>
+                                        <option value="MCA">MCA</option>
+                                        <option value="MBA">MBA</option>
+                                    </select>
+                                    <select id="semester" required>
+                                        <option value="">Semester</option>
+                                        <option value="1">1</option>
+                                        <option value="2">2</option>
+                                        <option value="3">3</option>
+                                        <option value="4">4</option>
+                                        <option value="5">5</option>
+                                        <option value="6">6</option>
+                                    </select>
+                                </div>
+                                
+                                <div id="staffFields" style="display: none;">
+                                    <select id="department">
+                                        <option value="">Department</option>
+                                        <option value="IT">IT</option>
+                                        <option value="Management">Management</option>
+                                    </select>
+                                </div>
+
+                                <div class="processing-mode">
+                                    <div class="mode-header">
+                                        <label for="processingToggle">Processing Mode</label>
+                                        <span class="info-icon" title="Choose how faces are processed">
+                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                                <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                                                <text x="8" y="11" text-anchor="middle" font-size="11" font-weight="bold" fill="currentColor">i</text>
+                                            </svg>
+                                            <div class="tooltip">
+                                                <strong>Client-Side Processing:</strong><br>
+                                                • Runs in your browser (face-api.js)<br>
+                                                • Lightweight on server (sends 512 bytes)<br>
+                                                • Requires modern browser<br>
+                                                • Best for Raspberry Pi<br><br>
+                                                <strong>Server-Side Processing:</strong><br>
+                                                • Runs on server (dlib)<br>
+                                                • Heavy on server (sends ~50KB per frame)<br>
+                                                • Works on any browser<br>
+                                                • Use if client fails
+                                            </div>
+                                        </span>
+                                    </div>
+                                    <div class="toggle-container">
+                                        <span class="toggle-label">Server</span>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="processingToggle" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                        <span class="toggle-label">Client</span>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary btn-block" id="startCaptureBtn">
+                                    Start Capture
+                                </button>
+                            </form>
+
+                            <div class="capture-panel" id="capturePanel" style="display: none;">
+                                <div class="video-container">
+                                    <video id="video" autoplay style="display: none;"></video>
+                                    <canvas id="canvas"></canvas>
+                                </div>
+                                <div class="capture-info" id="captureStatus">Position your face</div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" id="progressFill"></div>
+                                </div>
+                                <p class="progress-text" id="progressText">0 / 5</p>
+                                <div class="button-row">
+                                    <button class="btn btn-success btn-sm" id="completeBtn" style="display: none;">Complete</button>
+                                    <button class="btn btn-danger btn-sm" id="cancelBtn" style="display: none;">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="list-panel">
+                            <div class="list-header">
+                                <h3>Enrolled Persons</h3>
+                                <div class="filter-btns">
+                                    <button class="btn-xs active" id="showAll">All</button>
+                                    <button class="btn-xs" id="showStudents">Students</button>
+                                    <button class="btn-xs" id="showStaff">Staff</button>
+                                </div>
+                            </div>
+                            <div class="table-scroll">
+                                <table class="data-table compact" id="enrolledTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Person ID</th>
+                                            <th>Full Name</th>
+                                            <th>Course/Department</th>
+                                            <th style="text-align: center;">Manage</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="enrolledTableBody">
+                                        <tr><td colspan="4">Loading...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports Tab -->
+                <div class="tab-content" id="reports-tab">
+                    <div class="reports-container">
+                        <div class="filter-panel">
+                            <select id="roleFilter" class="select-sm">
+                                <option value="student">Students</option>
+                                <option value="staff">Staff</option>
+                            </select>
+                            <input type="date" id="dateFrom" class="input-sm">
+                            <input type="date" id="dateTo" class="input-sm">
+                            <input type="text" id="personIdFilter" placeholder="Person ID" class="input-sm">
+                            <button class="btn btn-primary btn-sm" id="loadReportBtn">Load</button>
+                            <button class="btn btn-secondary btn-sm" id="exportBtn">Export CSV</button>
+                        </div>
+                        <div class="table-scroll">
+                            <p class="record-count">Records: <span id="recordCount">0</span></p>
+                            <table class="data-table" id="reportTable">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Course/Dept</th>
+                                        <th>Date</th>
+                                        <th>Check In</th>
+                                        <th>Check Out</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reportTableBody">
+                                    <tr><td colspan="6">Select filters and click Load</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Custom Dialog Modal -->
+    <div id="customDialog" class="dialog-overlay">
+        <div class="dialog-box">
+            <div class="dialog-icon" id="dialogIcon">ℹ️</div>
+            <h3 class="dialog-title" id="dialogTitle">Notification</h3>
+            <p class="dialog-message" id="dialogMessage"></p>
+            <div class="dialog-actions">
+                <button class="btn btn-primary" id="dialogOkBtn">OK</button>
+                <button class="btn btn-secondary" id="dialogCancelBtn" style="display:none;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/dialog.js"></script>
+    <script src="/static/js/face-processor.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+    <script src="/static/js/enrollment.js"></script>
+    <script src="/static/js/reports.js"></script>
+    <script src="/static/js/attendance-sheet.js"></script>
+    <script src="/static/js/attendance.js"></script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

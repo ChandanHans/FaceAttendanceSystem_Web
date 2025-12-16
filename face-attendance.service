@@ -1,0 +1,15 @@
+[Unit]
+Description=Face Attendance System Web Service
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/FaceAttendanceSystem_Web
+Environment="PATH=/home/pi/FaceAttendanceSystem_Web/venv/bin"
+ExecStart=/home/pi/FaceAttendanceSystem_Web/venv/bin/python app.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

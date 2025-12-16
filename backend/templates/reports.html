@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reports - Face Attendance System</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">Face Attendance System</div>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/enrollment">Enrollment</a>
+            <a href="/attendance">Attendance</a>
+            <a href="/reports" class="active">Reports</a>
+            <a href="#" id="logoutBtn">Logout</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <h1>Attendance Reports</h1>
+        
+        <div class="filter-section">
+            <h2>Filters</h2>
+            
+            <div class="filter-form">
+                <div class="form-group">
+                    <label for="roleFilter">Role</label>
+                    <select id="roleFilter">
+                        <option value="student">Student</option>
+                        <option value="staff">Staff</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="dateFrom">From Date</label>
+                    <input type="date" id="dateFrom">
+                </div>
+                
+                <div class="form-group">
+                    <label for="dateTo">To Date</label>
+                    <input type="date" id="dateTo">
+                </div>
+                
+                <div class="form-group">
+                    <label for="personIdFilter">Person ID (optional)</label>
+                    <input type="text" id="personIdFilter" placeholder="Leave blank for all">
+                </div>
+                
+                <button class="btn btn-primary" id="loadReportBtn">Load Report</button>
+                <button class="btn btn-secondary" id="exportBtn">Export CSV</button>
+            </div>
+        </div>
+        
+        <div class="report-section">
+            <h2>Attendance Records</h2>
+            <p>Total Records: <span id="recordCount">0</span></p>
+            
+            <div class="table-container">
+                <table id="reportTable" class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Course/Dept</th>
+                            <th>Date</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportTableBody">
+                        <tr>
+                            <td colspan="6">No data loaded. Select filters and click "Load Report".</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/js/auth.js"></script>
+    <script src="/static/js/reports.js"></script>
+</body>
+</html>
