@@ -96,10 +96,14 @@ echo "📦 Installing numpy (this may take a while)..."
 pip install numpy==1.24.3
 
 echo "📦 Installing dlib (this will take 30-60 minutes on Pi)..."
+sudo apt-get install libopenblas-dev liblapack-dev
 pip install dlib
 
 echo "📦 Installing remaining packages..."
 pip install -r requirements_pi.txt
+
+echo "📦 Installing face-recognition package..."
+pip install face-recognition --no-deps
 
 echo "📁 Creating necessary directories..."
 mkdir -p face_data
