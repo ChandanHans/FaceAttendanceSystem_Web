@@ -1,7 +1,11 @@
 {
     "camera_choice": 0,
     "audio_choice": true,
-    "camera_ip": "",
+    "camera_ip": "", 
+    "camera_ip_examples": {
+        "rtsp": "rtsp://username:password@192.168.1.100:554/stream1",
+        "http": "http://192.168.1.100:8080/video"
+    },
     "scale": 0.5,
     "max_checkin": "00:00:00",
     "min_checkout": "23:59:00",

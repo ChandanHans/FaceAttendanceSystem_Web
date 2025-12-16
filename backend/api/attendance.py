@@ -177,20 +177,25 @@ def get_today_summary():
     db = Database()
     today = datetime.now().strftime('%Y-%m-%d')
     
-    # Count today's attendance
-    students_present = db.fetch_data(
+    # Count today's attendance with safe access
+    students_result = db.fetch_data(
         "SELECT COUNT(DISTINCT ID) FROM student_attendance WHERE Date = %s",
         (today,)
-    )[0][0]
+    )
+    students_present = students_result[0][0] if students_result and len(students_result) > 0 else 0
     
-    staff_present = db.fetch_data(
+    staff_result = db.fetch_data(
         "SELECT COUNT(DISTINCT ID) FROM staff_attendance WHERE Date = %s",
         (today,)
-    )[0][0]
+    )
+    staff_present = staff_result[0][0] if staff_result and len(staff_result) > 0 else 0
     
-    # Total enrolled
-    students_total = db.fetch_data("SELECT COUNT(*) FROM student_face")[0][0]
-    staff_total = db.fetch_data("SELECT COUNT(*) FROM staff_face")[0][0]
+    # Total enrolled with safe access
+    students_total_result = db.fetch_data("SELECT COUNT(*) FROM student_face")
+    students_total = students_total_result[0][0] if students_total_result and len(students_total_result) > 0 else 0
+    
+    staff_total_result = db.fetch_data("SELECT COUNT(*) FROM staff_face")
+    staff_total = staff_total_result[0][0] if staff_total_result and len(staff_total_result) > 0 else 0
     
     return jsonify({
         'students_present': students_present,
