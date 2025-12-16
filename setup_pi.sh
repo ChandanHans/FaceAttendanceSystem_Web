@@ -1,9 +1,15 @@
 #!/bin/bash
 # Setup script for Face Attendance System Web Edition on Raspberry Pi
 
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "$SCRIPT_DIR"
+
 echo "========================================="
 echo "Face Attendance System - Pi Setup"
 echo "========================================="
+echo ""
+echo "Working directory: $SCRIPT_DIR"
 echo ""
 
 # Check if running on Pi
