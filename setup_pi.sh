@@ -6,6 +6,29 @@ echo "Face Attendance System - Pi Setup"
 echo "========================================="
 echo ""
 
+# Check Python version
+echo "🔍 Checking Python version..."
+REQUIRED_VERSION="3.11.9"
+if command -v python3.11 &> /dev/null; then
+    PYTHON_CMD="python3.11"
+    PYTHON_VERSION=$(python3.11 --version | awk '{print $2}')
+else
+    PYTHON_CMD="python3"
+    PYTHON_VERSION=$(python3 --version | awk '{print $2}')
+fi
+
+echo "Found Python version: $PYTHON_VERSION"
+if [[ "$PYTHON_VERSION" != "$REQUIRED_VERSION" ]]; then
+    echo "⚠️  Warning: Python $REQUIRED_VERSION is recommended, but found $PYTHON_VERSION"
+    echo "To install Python 3.11.9:"
+    echo "  sudo apt-get install python3.11 python3.11-venv python3.11-dev"
+    read -p "Continue with $PYTHON_VERSION? (y/n) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        exit 1
+    fi
+fi
+
 # Check if running on Pi
 if ! grep -q "Raspberry Pi" /proc/cpuinfo 2>/dev/null; then
     echo "⚠️  Warning: This doesn't appear to be a Raspberry Pi"
@@ -29,7 +52,7 @@ sudo apt-get install -y libhdf5-dev libhdf5-serial-dev
 sudo apt-get install -y python3-opencv
 
 echo "🔧 Creating virtual environment..."
-python3 -m venv venv
+$PYTHON_CMD -m venv venv
 source venv/bin/activate
 
 echo "📦 Installing Python packages..."
@@ -66,7 +89,7 @@ echo "Next steps:"
 echo "1. Edit config/config.json with your database credentials"
 echo "2. Ensure MySQL database is set up"
 echo "3. Activate virtual environment: source venv/bin/activate"
-echo "4. Run the application: python3 app.py"
+echo "4. Run the application: $PYTHON_CMD app.py"
 echo "5. Access from browser: http://$(hostname -I | awk '{print $1}'):5000"
 echo ""
 echo "Default login: admin / admin123"

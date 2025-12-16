@@ -6,6 +6,24 @@ echo Face Attendance System - Windows Setup
 echo =========================================
 echo.
 
+echo Checking Python version...
+python --version 2>&1 | findstr /C:"3.11.9" >nul
+if errorlevel 1 (
+    echo WARNING: Python 3.11.9 is recommended
+    python --version
+    echo.
+    echo To install Python 3.11.9:
+    echo 1. Download from: https://www.python.org/downloads/release/python-3119/
+    echo 2. Install and add to PATH
+    echo 3. Run this setup script again
+    echo.
+    choice /C YN /M "Continue with current version"
+    if errorlevel 2 exit /b 1
+) else (
+    echo Found Python 3.11.9 - OK
+)
+echo.
+
 echo Creating virtual environment...
 python -m venv venv
 
