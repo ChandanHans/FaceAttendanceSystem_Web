@@ -130,13 +130,18 @@ else
             echo ""
             echo "❌ MySQL connection failed!"
             echo ""
-            echo "MySQL Server is not installed or not running."
+            echo "MySQL/MariaDB Server is not installed or not running."
             echo ""
-            echo "Installing MySQL Server..."
-            sudo apt-get install -y mysql-server
+            echo "Installing MariaDB Server (MySQL replacement for Pi)..."
+            sudo apt-get install -y mariadb-server mariadb-client
             
             echo ""
-            echo "Setting up MySQL root password..."
+            echo "Starting MariaDB service..."
+            sudo systemctl start mariadb
+            sudo systemctl enable mariadb
+            
+            echo ""
+            echo "Setting up MariaDB root password..."
             echo "Suggested credentials:"
             echo "  Host: localhost"
             echo "  User: root"
@@ -147,9 +152,12 @@ else
             read -p "Use these credentials? (y/n): " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
-                # Set MySQL root password
-                sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'FaceAttend2025!';"
-                sudo mysql -e "FLUSH PRIVILEGES;"
+                # Set MariaDB root password
+                sudo mariadb -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'FaceAttend2025!';"
+                sudo mariadb -e "FLUSH PRIVILEGES;"
+                
+                # Create database
+                sudo mariadb -u root -pFaceAttend2025! -e "CREATE DATABASE IF NOT EXISTS face_recognizer_web;"
                 
                 # Update config.json
                 python3 -c "
@@ -161,10 +169,11 @@ with open('config/config.json', 'w') as f:
     json.dump(config, f, indent=4)
 print('✅ Config updated!')
 "
-                echo "✅ MySQL password set and config updated!"
+                echo "✅ MariaDB password set and config updated!"
+                echo "✅ Database created!"
             else
                 echo ""
-                echo "Please update config/config.json manually with your MySQL credentials"
+                echo "Please update config/config.json manually with your MySQL/MariaDB credentials"
                 read -p "Press Enter to edit config now..."
                 nano config/config.json
             fi
