@@ -35,6 +35,11 @@ sudo apt-get install -y libhdf5-dev libhdf5-serial-dev
 sudo apt-get install -y python3-opencv
 sudo apt-get install -y build-essential libssl-dev libffi-dev
 sudo apt-get install -y libsqlite3-dev libbz2-dev libreadline-dev
+sudo apt-get install -y i2c-tools python3-smbus
+
+echo "🔧 Enabling I2C interface..."
+sudo raspi-config nonint do_i2c 0
+echo "✅ I2C enabled (reboot may be required)"
 
 echo "🐍 Checking Python version..."
 REQUIRED_VERSION="3.11.9"
@@ -104,6 +109,8 @@ pip install -r requirements_pi.txt
 
 echo "📦 Installing face-recognition package..."
 pip install face-recognition --no-deps
+pip install git+https://github.com/ageitgey/face_recognition_models
+
 
 echo "📁 Creating necessary directories..."
 mkdir -p face_data

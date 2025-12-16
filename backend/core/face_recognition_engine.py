@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 from typing import List, Tuple, Optional, Dict
 from threading import Lock
+from backend.core.lcd_display import LCDDisplay
 
 class FaceRecognitionEngine:
     """
@@ -24,6 +25,17 @@ class FaceRecognitionEngine:
         self.face_data_lock = Lock()
         self.frame_counter = 0
         self.frame_skip = self.config.get('frame_skip', 2)
+        
+        # Initialize LCD display if enabled
+        lcd_config = self.config.get('lcd_display', {})
+        if lcd_config.get('enabled', False):
+            self.lcd = LCDDisplay(
+                i2c_expander=lcd_config.get('i2c_expander', 'PCF8574'),
+                address=int(lcd_config.get('address', '0x27'), 16) if isinstance(lcd_config.get('address'), str) else lcd_config.get('address', 0x27),
+                port=lcd_config.get('port', 1)
+            )
+        else:
+            self.lcd = None
         
     def _load_config(self, config_path: Optional[str]) -> dict:
         """Load configuration from JSON file"""
@@ -227,6 +239,10 @@ class FaceRecognitionEngine:
                     frame, name, (left, bottom + 20),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2
                 )
+                
+                # Display on LCD if available
+                if self.lcd:
+                    self.lcd.show_name(name, role)
             else:
                 # Unknown face
                 top = int(face_location.top() / scale)
@@ -239,6 +255,10 @@ class FaceRecognitionEngine:
                     frame, "Unknown", (left, bottom + 20),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2
                 )
+                
+                # Display on LCD if available
+                if self.lcd:
+                    self.lcd.show_unknown()
         
         return frame, detected_persons
     
