@@ -1,0 +1,28 @@
+{
+    "camera_choice": 0,
+    "audio_choice": true,
+    "camera_ip": "",
+    "scale": 0.5,
+    "max_checkin": "00:00:00",
+    "min_checkout": "23:59:00",
+    "auto_start_monitoring": false,
+    "face_capture_count": 5,
+    "face_angle_threshold": 7.0,
+    "recognition_tolerance": 0.42,
+    "recognition_threshold": 0.6,
+    "frame_skip": 2,
+    "db_connection": {
+        "host": "localhost",
+        "user": "root",
+        "passwd": "FaceAttend2025!",
+        "db": "face_recognizer_web"
+    },
+    "secret_key": "your-secret-key-change-in-production",
+    "jwt_expiration_hours": 24,
+    "admin_users": [
+        {
+            "username": "admin",
+            "password": "admin123"
+        }
+    ]
+}

@@ -18,8 +18,8 @@ face_data/*.pkl
 Student_Face/
 Staff_Face/
 
-# Configuration (keep template, ignore with secrets)
-config/config.json
+# Configuration
+# config.json is now tracked in git
 
 # Database
 *.db

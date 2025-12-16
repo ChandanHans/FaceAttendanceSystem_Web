@@ -106,11 +106,78 @@ mkdir -p face_data
 mkdir -p Student_Face
 mkdir -p Staff_Face
 
-echo "⚙️  Setting up configuration..."
+echo ""
+echo "========================================="
+echo "🗄️  Checking MySQL Configuration"
+echo "========================================="
+echo ""
+
+# Check if config exists
 if [ ! -f config/config.json ]; then
-    echo "Please edit config/config.json with your database credentials"
+    echo "⚠️  config/config.json not found!"
 else
-    echo "Configuration file already exists"
+    # Check if host is localhost
+    DB_HOST=$(python3 -c "import json; config = json.load(open('config/config.json')); print(config['db_connection']['host'])" 2>/dev/null)
+    
+    if [ "$DB_HOST" == "localhost" ]; then
+        echo "Detected localhost MySQL configuration"
+        echo "Checking MySQL connection..."
+        
+        # Try to connect to MySQL
+        python3 -c "import mysql.connector; mysql.connector.connect(host='localhost', user='root', passwd='8258')" 2>/dev/null
+        
+        if [ $? -ne 0 ]; then
+            echo ""
+            echo "❌ MySQL connection failed!"
+            echo ""
+            echo "MySQL Server is not installed or not running."
+            echo ""
+            echo "Installing MySQL Server..."
+            sudo apt-get install -y mysql-server
+            
+            echo ""
+            echo "Setting up MySQL root password..."
+            echo "Suggested credentials:"
+            echo "  Host: localhost"
+            echo "  User: root"
+            echo "  Password: FaceAttend2025!"
+            echo "  Database: face_recognizer_web"
+            echo ""
+            
+            read -p "Use these credentials? (y/n): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                # Set MySQL root password
+                sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'FaceAttend2025!';"
+                sudo mysql -e "FLUSH PRIVILEGES;"
+                
+                # Update config.json
+                python3 -c "
+import json
+with open('config/config.json', 'r') as f:
+    config = json.load(f)
+config['db_connection']['passwd'] = 'FaceAttend2025!'
+with open('config/config.json', 'w') as f:
+    json.dump(config, f, indent=4)
+print('✅ Config updated!')
+"
+                echo "✅ MySQL password set and config updated!"
+            else
+                echo ""
+                echo "Please update config/config.json manually with your MySQL credentials"
+                read -p "Press Enter to edit config now..."
+                nano config/config.json
+            fi
+        else
+            echo "✅ MySQL connection successful!"
+            echo ""
+            echo "Creating database if not exists..."
+            python3 -c "import mysql.connector; conn = mysql.connector.connect(host='localhost', user='root', passwd='8258'); cursor = conn.cursor(); cursor.execute('CREATE DATABASE IF NOT EXISTS face_recognizer_web'); print('✅ Database ready!')" 2>/dev/null
+        fi
+    else
+        echo "Using remote MySQL server: $DB_HOST"
+        echo "Skipping local MySQL setup"
+    fi
 fi
 
 echo ""
@@ -119,11 +186,10 @@ echo "✅ Setup Complete!"
 echo "========================================="
 echo ""
 echo "Next steps:"
-echo "1. Edit config/config.json with your database credentials"
-echo "2. Ensure MySQL database is set up"
-echo "3. Activate virtual environment: source venv/bin/activate"
-echo "4. Run the application: python3 app.py"
-echo "5. Access from browser: http://$(hostname -I | awk '{print $1}'):5000"
+echo "1. If MySQL setup failed, update config/config.json manually"
+echo "2. Import database: mysql -u root -p face_recognizer_web < face_recognizer_web.sql"
+echo "3. Run the application: ./run.sh"
+echo "4. Access from browser: http://$(hostname -I | awk '{print $1}'):5000"
 echo ""
 echo "Default login: admin / admin123"
 echo ""

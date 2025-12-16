@@ -68,14 +68,65 @@ if not exist "Staff_Face" mkdir Staff_Face
 
 echo.
 echo =========================================
+echo Checking MySQL Configuration
+echo =========================================
+echo.
+
+REM Check if MySQL is needed (localhost in config)
+python -c "import json; config = json.load(open('config/config.json')); print(config['db_connection']['host'])" > temp_host.txt 2>nul
+if exist temp_host.txt (
+    set /p DB_HOST=<temp_host.txt
+    del temp_host.txt
+)
+
+if "%DB_HOST%" == "localhost" (
+    echo Detected localhost MySQL configuration
+    echo Checking MySQL connection...
+    
+    python -c "import mysql.connector; mysql.connector.connect(host='localhost', user='root', passwd='8258')" >nul 2>&1
+    if errorlevel 1 (
+        echo.
+        echo MySQL connection failed!
+        echo.
+        echo MySQL Server is not installed or not running.
+        echo.
+        echo Please install MySQL Server:
+        echo 1. Download from: https://dev.mysql.com/downloads/installer/
+        echo 2. Install MySQL Server with root password: FaceAttend2025!
+        echo 3. Or update config/config.json with your existing MySQL credentials
+        echo.
+        echo Suggested credentials for fresh install:
+        echo   Host: localhost
+        echo   User: root
+        echo   Password: FaceAttend2025!
+        echo   Database: face_recognizer_web
+        echo.
+        set /p UPDATE_CONFIG="Would you like to update config.json now? (y/n): "
+        if /i "%UPDATE_CONFIG%" == "y" (
+            echo.
+            echo Please edit config/config.json manually with your MySQL credentials
+            notepad config\config.json
+        )
+    ) else (
+        echo MySQL connection successful!
+        echo.
+        echo Creating database if not exists...
+        python -c "import mysql.connector; conn = mysql.connector.connect(host='localhost', user='root', passwd='8258'); cursor = conn.cursor(); cursor.execute('CREATE DATABASE IF NOT EXISTS face_recognizer_web'); print('Database ready!')" 2>nul
+        if errorlevel 0 (
+            echo Database setup complete!
+        )
+    )
+)
+
+echo.
+echo =========================================
 echo Setup Complete!
 echo =========================================
 echo.
 echo Next steps:
-echo 1. Edit config/config.json with your database credentials
-echo 2. Ensure MySQL database is set up
-echo 3. Run: python app.py
-echo 4. Access at: http://localhost:5000
+echo 1. If MySQL is not set up, install it and update config/config.json
+echo 2. Run: python app.py
+echo 3. Access at: http://localhost:5000
 echo.
 echo Default login: admin / admin123
 echo.
