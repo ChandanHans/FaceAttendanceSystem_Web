@@ -152,12 +152,26 @@ else
             read -p "Use these credentials? (y/n): " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
-                # Set MariaDB root password
-                sudo mariadb -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'FaceAttend2025!';"
-                sudo mariadb -e "FLUSH PRIVILEGES;"
+                # Set MariaDB root password (fresh install uses socket auth, no password needed yet)
+                echo "Setting up root password..."
+                sudo mariadb <<EOF
+ALTER USER 'root'@'localhost' IDENTIFIED BY 'FaceAttend2025!';
+CREATE DATABASE IF NOT EXISTS face_recognizer_web;
+FLUSH PRIVILEGES;
+EOF
                 
-                # Create database
-                sudo mariadb -u root -pFaceAttend2025! -e "CREATE DATABASE IF NOT EXISTS face_recognizer_web;"
+                if [ $? -eq 0 ]; then
+                    echo "✅ MariaDB configured successfully!"
+                else
+                    echo "⚠️  Failed to configure MariaDB. Trying alternative method..."
+                    # Alternative: Create new root user if ALTER fails
+                    sudo mariadb <<EOF
+CREATE USER IF NOT EXISTS 'root'@'localhost' IDENTIFIED BY 'FaceAttend2025!';
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION;
+CREATE DATABASE IF NOT EXISTS face_recognizer_web;
+FLUSH PRIVILEGES;
+EOF
+                fi
                 
                 # Update config.json
                 python3 -c "
