@@ -49,6 +49,13 @@ def create_app():
     face_engine = FaceRecognitionEngine()
     face_engine.refresh_known_faces()
     
+    # Test LCD display at startup
+    if face_engine.lcd and face_engine.lcd.enabled:
+        logging.info("✅ LCD Display is enabled and initialized")
+        face_engine.lcd.show_message("System Starting", "Please Wait...")
+    else:
+        logging.warning("⚠️ LCD Display is disabled or not available")
+    
     # Initialize API routes with face engine
     init_attendance_routes(face_engine)
     init_enrollment_routes(face_engine)

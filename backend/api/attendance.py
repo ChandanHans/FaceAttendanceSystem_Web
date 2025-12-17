@@ -48,6 +48,11 @@ def start_monitoring(camera_source = 0):
     # Refresh known faces before starting
     recognition_engine.refresh_known_faces()
 
+    # Show monitoring start on LCD
+    if recognition_engine.lcd and recognition_engine.lcd.enabled:
+        recognition_engine.lcd.show_message("Monitoring", "Starting...")
+        logging.info("📺 LCD: Monitoring starting...")
+    
     # Start video capture thread
     is_streaming = True
     monitoring_start_time = datetime.now()
@@ -79,6 +84,10 @@ def video_capture_thread(camera_source):
             # First successful frame -> initialization complete
             if is_initializing:
                 is_initializing = False
+                # Show ready message on LCD
+                if recognition_engine.lcd and recognition_engine.lcd.enabled:
+                    recognition_engine.lcd.show_waiting()
+                    logging.info("📺 LCD: Ready for scanning")
             
             # Add detected persons to attendance queue
             if detected_persons:

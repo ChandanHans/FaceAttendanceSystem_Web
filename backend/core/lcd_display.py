@@ -58,8 +58,9 @@ class LCDDisplay:
         try:
             self.lcd.clear()
             self.lcd.write_string("Face Attendance\n\rSystem Ready")
+            logging.info("✅ LCD startup message displayed")
         except Exception as e:
-            logging.error(f"LCD write error: {e}")
+            logging.error(f"❌ LCD write error: {e}")
             self.enabled = False
     
     def show_name(self, name: str, role: str = ""):

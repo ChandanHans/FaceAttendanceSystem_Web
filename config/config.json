@@ -19,7 +19,7 @@
     "recognition_threshold": 0.6,
     "frame_skip": 2,
     "lcd_display": {
-        "enabled": false,
+        "enabled": true,
         "i2c_expander": "PCF8574",
         "address": "0x27",
         "port": 1
