@@ -285,19 +285,26 @@ async function startServerSideCapture(source) {
         document.getElementById('enrollmentForm').style.display = 'none';
         document.getElementById('cancelBtn').style.display = 'inline-block';
         
+        // Initialize progress display
+        updateProgress({
+            count: 0,
+            target: 5,
+            message: 'Starting server-side camera capture...'
+        });
+        
         // Show info message
         Dialog.info('Using server-side camera. Please position yourself in front of the camera.');
         
         // Start capturing using server
         capturing = true;
-        captureInterval = setInterval(captureFrameFromServer, 1000); // Slower interval for server-side
+        captureInterval = setInterval(captureFrameFromServer, 1500); // Slower interval for server-side
         console.log('Started server-side frame capture');
         
         // Display message in video area
         video = document.getElementById('video');
         const videoContainer = video.parentElement;
         const statusDiv = document.getElementById('captureStatus');
-        statusDiv.textContent = 'Using server-side camera capture';
+        statusDiv.textContent = 'Using server-side camera capture - Position yourself in front of camera';
         statusDiv.style.display = 'block';
         
     } catch (error) {
@@ -311,10 +318,17 @@ async function startServerSideCapture(source) {
 }
 
 async function captureFrameFromServer() {
-    if (!capturing || !sessionId) return;
-    if (isCaptureBusy) return;
+    if (!capturing || !sessionId) {
+        console.log('Server capture skipped - capturing:', capturing, 'sessionId:', sessionId);
+        return;
+    }
+    if (isCaptureBusy) {
+        console.log('Server capture skipped - busy');
+        return;
+    }
     
     isCaptureBusy = true;
+    console.log('📸 Requesting server capture...');
     
     try {
         // Request server to capture from its camera
@@ -323,25 +337,57 @@ async function captureFrameFromServer() {
             body: JSON.stringify({ session_id: sessionId })
         });
         
+        console.log('Server response status:', response.status);
+        
         if (response.ok) {
             const result = await response.json();
             console.log('Server capture result:', result);
+            console.log('  - captured:', result.captured);
+            console.log('  - captured_count:', result.captured_count);
+            console.log('  - total_required:', result.total_required);
+            console.log('  - message:', result.message);
+            
+            // Validate response data
+            const count = typeof result.captured_count === 'number' ? result.captured_count : 0;
+            const target = typeof result.total_required === 'number' ? result.total_required : 5;
+            const message = result.message || 'Processing...';
+            
+            console.log('Updating progress with count:', count, 'target:', target);
+            
+            // Update progress with proper format
+            updateProgress({
+                count: count,
+                target: target,
+                message: message
+            });
             
             if (result.captured) {
-                updateProgress(result.captured_count, result.total_required);
-                
-                if (result.captured_count >= result.total_required) {
+                console.log('✅ Frame captured successfully!');
+                if (count >= target) {
+                    console.log('🎉 All frames captured!');
                     stopCapturing();
                     document.getElementById('completeBtn').style.display = 'inline-block';
                     Dialog.success('All images captured! You can now complete enrollment.');
                 }
+            } else {
+                console.log('⏭️ Frame not captured:', message);
             }
         } else {
             const error = await response.json();
-            console.error('Server capture error:', error);
+            console.error('Server capture error response:', error);
+            updateProgress({
+                count: 0,
+                target: 5,
+                message: error.error || 'Server capture failed'
+            });
         }
     } catch (error) {
         console.error('Server capture request error:', error);
+        updateProgress({
+            count: 0,
+            target: 5,
+            message: 'Connection error: ' + error.message
+        });
     } finally {
         isCaptureBusy = false;
     }
