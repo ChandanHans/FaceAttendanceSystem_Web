@@ -1,20 +1,15 @@
-// Enrollment functionality
+// Enrollment functionality - SERVER-SIDE ONLY
 let currentRole = 'student';
 let sessionId = null;
-let video = null;
-let canvas = null;
 let capturing = false;
 let captureInterval = null;
 let isStartingEnrollment = false;
 let isCaptureBusy = false;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Small delay to ensure all elements are rendered
-    setTimeout(() => {
-        setupToggleButtons();
-        setupForm();
-        loadEnrolledList();
-    }, 100);
+    setupToggleButtons();
+    setupForm();
+    loadEnrolledList();
 });
 
 function setupToggleButtons() {
@@ -79,30 +74,12 @@ async function startEnrollment() {
     isStartingEnrollment = true;
     const submitBtn = document.querySelector('#enrollmentForm button[type="submit"]');
     if (submitBtn) submitBtn.disabled = true;
-
-    console.log('=== START ENROLLMENT CALLED ===');
-    console.log('apiCall function available:', typeof apiCall !== 'undefined');
-    console.log('localStorage token:', localStorage.getItem('access_token') ? 'Present' : 'Missing');
-    
-    if (typeof apiCall === 'undefined') {
-        console.error('apiCall is not defined. Check if auth.js is loaded.');
-        Dialog.error('Error: API function not available. Please refresh the page.');
-        isStartingEnrollment = false;
-        if (submitBtn) submitBtn.disabled = false;
-        return;
-    }
     
     const personId = document.getElementById('personId');
     const personName = document.getElementById('personName');
     
-    console.log('Form elements found:', {
-        personId: !!personId,
-        personName: !!personName
-    });
-    
     if (!personId || !personName) {
-        console.error('Form elements not found!');
-        Dialog.error('Error: Form elements not found. Please refresh the page.');
+        Dialog.error('Form elements not found');
         isStartingEnrollment = false;
         if (submitBtn) submitBtn.disabled = false;
         return;
@@ -110,6 +87,8 @@ async function startEnrollment() {
     
     if (!personId.value || !personName.value) {
         Dialog.warning('Please fill in ID and Name fields');
+        isStartingEnrollment = false;
+        if (submitBtn) submitBtn.disabled = false;
         return;
     }
     
@@ -129,14 +108,13 @@ async function startEnrollment() {
         }
     } else {
         data.dep = document.getElementById('department').value;
-        console.log('Staff field:', { dep: data.dep });
         if (!data.dep) {
             Dialog.warning('Please select Department');
+            isStartingEnrollment = false;
+            if (submitBtn) submitBtn.disabled = false;
             return;
         }
     }
-    
-    console.log('=== ENROLLMENT DATA ===', data);
     
     try {
         const response = await apiCall('/enrollment/start', {
@@ -144,15 +122,11 @@ async function startEnrollment() {
             body: JSON.stringify(data)
         });
         
-        console.log('Response status:', response.status);
-        
         if (response.ok) {
             const result = await response.json();
-            console.log('Enrollment started:', result);
             sessionId = result.session_id;
-            await startCamera();
+            startServerSideCapture();
             isStartingEnrollment = false;
-            if (submitBtn) submitBtn.disabled = true; // keep disabled while camera active
         } else {
             const error = await response.json();
             console.error('Enrollment error:', error);
@@ -168,154 +142,32 @@ async function startEnrollment() {
     }
 }
 
-async function startCamera() {
-    video = document.getElementById('video');
-    canvas = document.getElementById('canvas');
-    const startCaptureBtn = document.getElementById('startCaptureBtn');
-    if (startCaptureBtn) startCaptureBtn.disabled = true;
+function startServerSideCapture() {
+    console.log('🎥 Starting server-side camera capture...');
     
-    console.log('🎥 Auto-detecting camera source...');
+    // Show capture panel and hide form
+    document.getElementById('capturePanel').style.display = 'block';
+    document.getElementById('enrollmentForm').style.display = 'none';
+    document.getElementById('cancelBtn').style.display = 'inline-block';
+    document.getElementById('completeBtn').style.display = 'none';
     
-    // Try browser camera first
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        try {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const videoDevices = devices.filter(device => device.kind === 'videoinput');
-            
-            if (videoDevices.length > 0) {
-                console.log('✅ Browser camera available, using it');
-                // Continue with browser camera
-            } else {
-                console.warn('⚠️ No browser cameras found, trying server-side...');
-                await startServerSideCapture('server');
-                return;
-            }
-        } catch (error) {
-            console.warn('⚠️ Browser camera check failed, trying server-side...', error);
-            await startServerSideCapture('server');
-            return;
-        }
-    } else {
-        console.warn('⚠️ Browser camera not supported, trying server-side...');
-        await startServerSideCapture('server');
-        return;
+    // Update progress display
+    updateProgress({
+        count: 0,
+        target: 5,
+        message: 'Capturing from server camera...'
+    });
+    
+    // Update info text
+    const captureInfo = document.getElementById('captureInfo');
+    if (captureInfo) {
+        captureInfo.textContent = 'Using server camera. Please look at the camera and turn your head slowly.';
     }
     
-    try {
-        // Get available cameras
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        
-        console.log('Available cameras:', videoDevices.length);
-        
-        // If no cameras found, try alternatives
-        if (videoDevices.length === 0) {
-            console.warn('No browser cameras found, trying alternatives...');
-            await tryAlternativeCameraSources();
-            return;
-        }
-        
-        // Let user choose if multiple cameras available
-        let selectedDeviceId = null;
-        if (videoDevices.length > 1) {
-            selectedDeviceId = await showCameraSelector(videoDevices);
-            if (!selectedDeviceId) {
-                Dialog.warning('No camera selected. Using default camera.');
-            }
-        }
-        
-        // Request camera with optimal settings
-        const constraints = {
-            video: selectedDeviceId ? {
-                deviceId: { exact: selectedDeviceId },
-                width: { ideal: 640 },
-                height: { ideal: 480 }
-            } : {
-                width: { ideal: 640 },
-                height: { ideal: 480 },
-                facingMode: 'user' // Front camera on mobile, default on desktop
-            }
-        };
-        
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = stream;
-        
-        // Wait for video to be ready
-        await new Promise(resolve => {
-            video.onloadedmetadata = () => {
-                video.play();
-                resolve();
-            };
-        });
-        
-        console.log('Camera started successfully');
-        
-        // Show capture panel and hide form
-        document.getElementById('capturePanel').style.display = 'block';
-        document.getElementById('enrollmentForm').style.display = 'none';
-        document.getElementById('cancelBtn').style.display = 'inline-block';
-        
-        // Show video element for browser camera
-        video.style.display = 'block';
-        document.getElementById('serverCameraPlaceholder').style.display = 'none';
-        
-        if (startCaptureBtn) startCaptureBtn.disabled = true; // ensure disabled while auto-capturing
-        
-        capturing = true;
-        captureInterval = setInterval(captureFrame, 500);
-        console.log('Started capturing frames');
-        
-    } catch (error) {
-        console.error('Browser camera error:', error);
-        console.warn('Browser camera failed, trying alternatives...');
-        await tryAlternativeCameraSources();
-    }
-}
-
-async function tryAlternativeCameraSources() {
-    console.log('⚠️ Browser camera not available, automatically switching to server-side camera...');
-    await startServerSideCapture('server');
-}
-
-async function startServerSideCapture(source) {
-    console.log('Starting server-side capture with source:', source);
-    
-    try {
-        // Show capture panel and hide form
-        document.getElementById('capturePanel').style.display = 'block';
-        document.getElementById('enrollmentForm').style.display = 'none';
-        document.getElementById('cancelBtn').style.display = 'inline-block';
-        
-        // Initialize progress display
-        updateProgress({
-            count: 0,
-            target: 5,
-            message: 'Starting server-side camera capture...'
-        });
-        
-        // Hide video element, show server camera placeholder
-        const videoElement = document.getElementById('video');
-        const placeholder = document.getElementById('serverCameraPlaceholder');
-        if (videoElement) videoElement.style.display = 'none';
-        if (placeholder) placeholder.style.display = 'block';
-        
-        // Update info text
-        const captureInfo = document.getElementById('captureInfo');
-        if (captureInfo) captureInfo.textContent = 'Using server-side camera. Images are being captured automatically.';
-        
-        // Start capturing using server
-        capturing = true;
-        captureInterval = setInterval(captureFrameFromServer, 1500); // Slower interval for server-side
-        console.log('Started server-side frame capture');
-        
-    } catch (error) {
-        console.error('Server-side capture error:', error);
-        Dialog.error('Failed to start server-side capture: ' + error.message);
-        const submitBtn = document.querySelector('#enrollmentForm button[type="submit"]');
-        if (submitBtn) submitBtn.disabled = false;
-        const startCaptureBtn = document.getElementById('startCaptureBtn');
-        if (startCaptureBtn) startCaptureBtn.disabled = false;
-    }
+    // Start capturing
+    capturing = true;
+    captureInterval = setInterval(captureFrameFromServer, 1500);
+    console.log('Started server-side capture');
 }
 
 async function captureFrameFromServer() {
@@ -394,136 +246,11 @@ async function captureFrameFromServer() {
     }
 }
 
-async function captureFrame() {
-    if (!capturing || !video || !canvas) return;
-    if (isCaptureBusy) return; // avoid overlapping requests while server is busy
-    
-    try {
-        // Check user preference and model availability
-        const processingToggle = document.getElementById('processingToggle');
-        const userWantsClient = processingToggle ? processingToggle.checked : false;
-        const modelsAvailable = window.FaceProcessor && FaceProcessor.modelsLoaded;
-        const useClientProcessing = userWantsClient && modelsAvailable;
-        
-        if (!modelsAvailable && userWantsClient) {
-            console.warn('⚠️ Client processing selected but models not loaded. Using server-side.');
-        }
-        
-        if (useClientProcessing) {
-            // CLIENT-SIDE PROCESSING (face-api.js - lightweight on Pi)
-            console.log('💻 Using CLIENT-SIDE processing (face-api.js)');
-            const faceData = await FaceProcessor.detectFace(video);
-            
-            if (!faceData) {
-                // Clear canvas and show message
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0);
-                
-                updateProgress({
-                    count: 0,
-                    target: 5,
-                    message: '⚠️ No face detected. Please face the camera.',
-                    complete: false
-                });
-                return;
-            }
-            
-            // Draw video frame and face axis on canvas
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0);
-            
-            // Draw face axis visualization
-            FaceProcessor.drawFaceAxis(ctx, faceData.landmarks, faceData.angle, faceData.box);
-            
-            // Log face data with detailed angles
-            console.log('📐 ANGLES - Yaw:', faceData.angle.yaw.toFixed(1) + '°', 'Pitch:', faceData.angle.pitch.toFixed(1) + '°', 'Roll:', faceData.angle.roll.toFixed(1) + '°');
-            console.log('🎯 Detection Score:', faceData.score.toFixed(3));
-            
-            // Send descriptor (512 bytes instead of 50KB!)
-            isCaptureBusy = true;
-            const response = await apiCall('/enrollment/capture', {
-                method: 'POST',
-                body: JSON.stringify({
-                    session_id: sessionId,
-                    descriptor: faceData.descriptor,
-                    angle: faceData.angle,
-                    use_client_processing: true
-                })
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                updateProgress(result);
-                
-                if (result.captured) {
-                    console.log(`✅ Captured ${result.count}/${result.target}`);
-                }
-                
-                if (result.complete) {
-                    clearInterval(captureInterval);
-                    capturing = false;
-                    document.getElementById('completeBtn').style.display = 'inline-block';
-                }
-                isCaptureBusy = false;
-            }
-        } else {
-            // FALLBACK: SERVER-SIDE PROCESSING (dlib on Pi)
-            console.log('🖥️ Using SERVER-SIDE processing (dlib)');
-            
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0);
-            
-            // Add text overlay for server-side mode
-            ctx.font = 'bold 18px Arial';
-            ctx.fillStyle = '#FFFF00';
-            ctx.strokeStyle = '#000000';
-            ctx.lineWidth = 3;
-            ctx.strokeText('Server Processing', 10, 30);
-            ctx.fillText('Server Processing', 10, 30);
-            
-            const frameData = canvas.toDataURL('image/jpeg', 0.8);
-            
-            isCaptureBusy = true;
-            const response = await apiCall('/enrollment/capture', {
-                method: 'POST',
-                body: JSON.stringify({
-                    session_id: sessionId,
-                    frame: frameData,
-                    use_client_processing: false
-                })
-            });
-            
-            if (response.ok) {
-                const result = await response.json();
-                
-                // Log angle if provided by server
-                if (result.angle !== undefined) {
-                    console.log(`📐 Server detected angle: ${result.angle.toFixed(1)}°`);
-                }
-                
-                updateProgress(result);
-                
-                if (result.captured) {
-                    console.log(`📸 Captured ${result.count}/${result.target}`);
-                }
-                
-                if (result.complete) {
-                    clearInterval(captureInterval);
-                    capturing = false;
-                    document.getElementById('completeBtn').style.display = 'inline-block';
-                }
-                isCaptureBusy = false;
-            }
-        }
-    } catch (error) {
-        console.error('Capture error:', error);
-        isCaptureBusy = false;
+function stopCapturing() {
+    capturing = false;
+    if (captureInterval) {
+        clearInterval(captureInterval);
+        captureInterval = null;
     }
 }
 
@@ -572,19 +299,12 @@ function cancelEnrollment() {
 }
 
 function resetEnrollment() {
-    console.log('=== RESET ENROLLMENT CALLED ===');
-    console.log('Stack trace:', new Error().stack);
-    
-    if (video && video.srcObject) {
-        video.srcObject.getTracks().forEach(track => track.stop());
-    }
-    
+    // Stop capturing
     capturing = false;
     if (captureInterval) {
         clearInterval(captureInterval);
     }
     
-    console.log('Clearing sessionId:', sessionId);
     sessionId = null;
     
     // Reset and show form, hide capture panel
@@ -592,15 +312,11 @@ function resetEnrollment() {
     document.getElementById('enrollmentForm').style.display = 'flex';
     document.getElementById('capturePanel').style.display = 'none';
     
-    // Reset video/camera display
-    const videoElement = document.getElementById('video');
-    const placeholder = document.getElementById('serverCameraPlaceholder');
-    if (videoElement) videoElement.style.display = 'none';
-    if (placeholder) placeholder.style.display = 'none';
-    
-    // Reset capture info text
+    // Reset info text
     const captureInfo = document.getElementById('captureInfo');
-    if (captureInfo) captureInfo.textContent = 'System will capture 5 images from different angles. Turn your head slowly to capture varied poses.';
+    if (captureInfo) {
+        captureInfo.textContent = 'System will capture 5 images from different angles using server camera.';
+    }
     
     // Reset progress
     document.getElementById('progressFill').style.width = '0%';
@@ -608,12 +324,10 @@ function resetEnrollment() {
     document.getElementById('captureStatus').textContent = '';
     document.getElementById('completeBtn').style.display = 'none';
     document.getElementById('cancelBtn').style.display = 'none';
-    document.getElementById('startCaptureBtn').disabled = false;
+    
     const submitBtn = document.querySelector('#enrollmentForm button[type="submit"]');
     if (submitBtn) submitBtn.disabled = false;
     isStartingEnrollment = false;
-    
-    console.log('Enrollment reset complete');
 }
 
 async function loadEnrolledList(filter = 'all') {
@@ -720,49 +434,6 @@ function setupFilterButtons() {
 document.addEventListener('DOMContentLoaded', () => {
     setupFilterButtons();
 });
-
-// Camera selection dialog
-async function showCameraSelector(cameras) {
-    return new Promise((resolve) => {
-        const overlay = document.createElement('div');
-        overlay.className = 'dialog-overlay show';
-        overlay.style.zIndex = '10001';
-        
-        const dialog = document.createElement('div');
-        dialog.className = 'dialog-box';
-        dialog.innerHTML = `
-            <div class="dialog-icon">📹</div>
-            <h3 class="dialog-title">Select Camera</h3>
-            <p class="dialog-message">Choose which camera to use for enrollment:</p>
-            <select id="cameraSelect" class="select-sm" style="width: 100%; margin: 1rem 0; padding: 0.5rem;">
-                ${cameras.map((cam, idx) => `
-                    <option value="${cam.deviceId}">
-                        ${cam.label || `Camera ${idx + 1}`}
-                    </option>
-                `).join('')}
-            </select>
-            <div class="dialog-actions">
-                <button class="btn btn-primary" id="confirmCamera">Use This Camera</button>
-                <button class="btn btn-secondary" id="cancelCamera">Use Default</button>
-            </div>
-        `;
-        
-        overlay.appendChild(dialog);
-        document.body.appendChild(overlay);
-        
-        document.getElementById('confirmCamera').onclick = () => {
-            const select = document.getElementById('cameraSelect');
-            const deviceId = select.value;
-            document.body.removeChild(overlay);
-            resolve(deviceId);
-        };
-        
-        document.getElementById('cancelCamera').onclick = () => {
-            document.body.removeChild(overlay);
-            resolve(null);
-        };
-    });
-}
 
 // Make loadEnrolledList globally accessible
 window.loadEnrolledPersons = () => loadEnrolledList('all');

@@ -81,10 +81,9 @@ def start_enrollment():
 @enrollment_bp.route('/capture', methods=['POST'])
 @jwt_required()
 def capture_frame():
-    """Capture a frame for enrollment - supports both client-side and server-side processing"""
+    """Capture a frame for enrollment - SERVER-SIDE ONLY"""
     data = request.get_json()
     session_id = data.get('session_id')
-    use_client_processing = data.get('use_client_processing', False)
     
     if session_id not in enrollment_sessions:
         return jsonify({'error': 'Invalid session ID'}), 400
@@ -92,85 +91,32 @@ def capture_frame():
     session = enrollment_sessions[session_id]
     face_capturer = session['face_capturer']
     
-    # CLIENT-SIDE PROCESSING MODE (Recommended for Raspberry Pi)
-    if use_client_processing:
-        descriptor = data.get('descriptor')
-        angle = data.get('angle')
-        
-        if not descriptor or not angle:
-            return jsonify({'error': 'Descriptor and angle required for client-side processing'}), 400
-        
-        # Convert descriptor to numpy array
-        descriptor_array = np.array(descriptor, dtype=np.float64)
-        
-        # Store descriptor directly (no server-side image processing!)
-        if not hasattr(face_capturer, 'captured_descriptors'):
-            face_capturer.captured_descriptors = []
-            face_capturer.captured_angles = []
-        
-        # Check if angle is different enough
-        angle_dict = angle if isinstance(angle, dict) else {'yaw': angle, 'pitch': 0, 'roll': 0}
-        new_angle = (angle_dict.get('yaw', 0), angle_dict.get('pitch', 0), angle_dict.get('roll', 0))
-        
-        # Simple angle difference check
-        is_different = True
-        if len(face_capturer.captured_angles) > 0:
-            for captured_angle in face_capturer.captured_angles:
-                yaw_diff = abs(new_angle[0] - captured_angle[0])
-                pitch_diff = abs(new_angle[1] - captured_angle[1])
-                roll_diff = abs(new_angle[2] - captured_angle[2])
-                distance = np.sqrt(yaw_diff**2 + pitch_diff**2 + roll_diff**2)
-                if distance < face_capturer.angle_threshold:
-                    is_different = False
-                    break
-        
-        status_message = ''
-        should_capture = False
-        
-        if is_different:
-            face_capturer.captured_descriptors.append(descriptor_array)
-            face_capturer.captured_angles.append(new_angle)
-            should_capture = True
-            status_message = f'✅ Captured angle: yaw={angle_dict["yaw"]:.1f}° pitch={angle_dict["pitch"]:.1f}°'
-        else:
-            status_message = f'⚠️ Similar angle detected. Turn your head slightly.'
-        
-        captured_count = len(face_capturer.captured_descriptors)
-        target_count = face_capturer.target_count
-        
-        return jsonify({
-            'captured': should_capture,
-            'count': captured_count,
-            'target': target_count,
-            'message': status_message,
-            'complete': captured_count >= target_count
-        }), 200
+    # SERVER-SIDE PROCESSING ONLY
+    frame_data = data.get('frame')
+    if not frame_data:
+        return jsonify({'error': 'Frame data required'}), 400
     
-    # SERVER-SIDE PROCESSING MODE (Fallback for older browsers)
-    else:
-        frame_data = data.get('frame')  # Base64 encoded image
-        
-        # Decode frame
-        try:
-            img_data = base64.b64decode(frame_data.split(',')[1] if ',' in frame_data else frame_data)
-            nparr = np.frombuffer(img_data, np.uint8)
-            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        except Exception as e:
-            return jsonify({'error': f'Invalid frame data: {str(e)}'}), 400
-        
-        # Process frame
-        should_capture, face_img, status_message = face_capturer.process_frame(frame)
-        
-        captured_count = len(face_capturer.captured_images)
-        target_count = face_capturer.target_count
-        
-        return jsonify({
-            'captured': should_capture,
-            'count': captured_count,
-            'target': target_count,
-            'message': status_message,
-            'complete': captured_count >= target_count
-        }), 200
+    # Decode frame
+    try:
+        img_data = base64.b64decode(frame_data.split(',')[1] if ',' in frame_data else frame_data)
+        nparr = np.frombuffer(img_data, np.uint8)
+        frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    except Exception as e:
+        return jsonify({'error': f'Invalid frame data: {str(e)}'}), 400
+    
+    # Process frame
+    should_capture, face_img, status_message = face_capturer.process_frame(frame)
+    
+    captured_count = len(face_capturer.captured_images)
+    target_count = face_capturer.target_count
+    
+    return jsonify({
+        'captured': should_capture,
+        'count': captured_count,
+        'target': target_count,
+        'message': status_message,
+        'complete': captured_count >= target_count
+    }), 200
 
 @enrollment_bp.route('/complete', methods=['POST'])
 @jwt_required()
@@ -189,40 +135,28 @@ def complete_enrollment():
     role = session['role']
     
     try:
-        # CLIENT-SIDE PROCESSING MODE
-        if hasattr(face_capturer, 'captured_descriptors'):
-            if len(face_capturer.captured_descriptors) < face_capturer.target_count:
-                return jsonify({'error': 'Not enough descriptors captured'}), 400
-            
-            # Save descriptors directly (no image processing!)
-            encodings = face_capturer.captured_descriptors
-            
-            # Save encodings to file
-            face_engine.save_encodings_to_file(person_id, encodings, name, role)
+        # SERVER-SIDE PROCESSING ONLY
+        if len(face_capturer.captured_images) < face_capturer.target_count:
+            return jsonify({'error': 'Not enough images captured'}), 400
         
-        # SERVER-SIDE PROCESSING MODE (Fallback)
-        else:
-            if len(face_capturer.captured_images) < face_capturer.target_count:
-                return jsonify({'error': 'Not enough images captured'}), 400
-            
-            # Save images to disk
-            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-            images_dir = os.path.join(
-                project_root,
-                'Student_Face' if role == 'student' else 'Staff_Face'
-            )
-            person_dir = face_capturer.save_images(images_dir, person_id)
-            
-            # Generate face encodings
-            encodings = face_engine.generate_encodings_from_images(person_dir)
-            
-            if not encodings:
-                if os.path.exists(person_dir):
-                    shutil.rmtree(person_dir)
-                return jsonify({'error': 'Failed to generate face encodings'}), 500
-            
-            # Save encodings to file
-            face_engine.save_encodings_to_file(person_id, encodings, name, role)
+        # Save images to disk
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        images_dir = os.path.join(
+            project_root,
+            'Student_Face' if role == 'student' else 'Staff_Face'
+        )
+        person_dir = face_capturer.save_images(images_dir, person_id)
+        
+        # Generate face encodings
+        encodings = face_engine.generate_encodings_from_images(person_dir)
+        
+        if not encodings:
+            if os.path.exists(person_dir):
+                shutil.rmtree(person_dir)
+            return jsonify({'error': 'Failed to generate face encodings'}), 500
+        
+        # Save encodings to file
+        face_engine.save_encodings_to_file(person_id, encodings, name, role)
         
         # Save to database (both modes need this)
         db = Database()
@@ -248,18 +182,17 @@ def complete_enrollment():
             # Only delete person_dir if it exists (server-side mode)
             if hasattr(face_capturer, 'captured_images'):
                 project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-                images_dir = os.path.join(
-                    project_root,
-                    'Student_Face' if role == 'student' else 'Staff_Face'
-                )
-                person_dir = os.path.join(images_dir, person_id)
-                if os.path.exists(person_dir):
-                    shutil.rmtree(person_dir)
+            images_dir = os.path.join(
+                project_root,
+                'Student_Face' if role == 'student' else 'Staff_Face'
+            )
+            person_dir = os.path.join(images_dir, person_id)
+            if os.path.exists(person_dir):
+                shutil.rmtree(person_dir)
             return jsonify({'error': 'Failed to save to database'}), 500
         
-        # Refresh face recognition engine
-        face_engine.refresh_known_faces()
-        
+        # RefrDelete person_dir
+    
         # Clean up session
         del enrollment_sessions[session_id]
         

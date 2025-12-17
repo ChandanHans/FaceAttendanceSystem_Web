@@ -77,24 +77,19 @@
                         </div>
                     </div>
                     
-                    <p class="info-text">Camera will automatically detect: Browser → Server → Stream</p>
+                    <p class="info-text">📷 Using server-side camera for face capture</p>
                     
-                    <button type="submit" class="btn btn-primary" id="startCaptureBtn">Start Capture</button>
+                    <button type="submit" class="btn btn-primary" id="startCaptureBtn">Start Enrollment</button>
                 </form>
             </div>
             
             <div class="camera-section" id="capturePanel" style="display: none;">
-                <h2>Face Capture</h2>
-                <p class="info-text" id="captureInfo">System will capture 5 images from different angles. Turn your head slowly to capture varied poses.</p>
+                <h2>Face Capture (Server Camera)</h2>
+                <p class="info-text" id="captureInfo">System will capture 5 images from different angles using server camera. Please position yourself in front of the camera and turn your head slowly.</p>
                 
-                <div class="camera-container">
-                    <video id="video" autoplay style="display: none;"></video>
-                    <canvas id="canvas" style="display: none;"></canvas>
-                    <div id="serverCameraPlaceholder" style="display: none; padding: 60px; text-align: center; background: #f0f0f0; border-radius: 8px;">
-                        <h3>📷 Using Server-Side Camera</h3>
-                        <p>Please position yourself in front of the server's camera</p>
-                    </div>
-                    <div id="captureStatus" class="capture-status"></div>
+                <div class="camera-container" style="padding: 60px; text-align: center; background: #f0f0f0; border-radius: 8px;">
+                    <h3>📷 Using Server Camera</h3>
+                    <p id="captureStatus" class="capture-status">Capturing from server...</p>
                 </div>
                 
                 <div class="progress-container">
