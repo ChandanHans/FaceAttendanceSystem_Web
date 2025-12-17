@@ -1,12 +1,13 @@
 {
     "wifi_ssid": "ChandanHans",
     "wifi_password": "1234567890",
-    "camera_choice": "http://192.168.4.1:81/stream",
+    "camera_choice": "http://172.30.9.196:5001/video",
     "audio_choice": true,
-    "camera_ip": "http://192.168.4.1:81/stream", 
+    "camera_ip": "http://172.30.9.196:5001/video", 
     "camera_ip_examples": {
         "rtsp": "rtsp://username:password@192.168.1.100:554/stream1",
-        "http": "http://192.168.1.100:8080/video"
+        "http": "http://192.168.1.100:8080/video",
+        "laptop": "http://172.30.9.196:5001/video"
     },
     "scale": 0.5,
     "max_checkin": "00:00:00",
