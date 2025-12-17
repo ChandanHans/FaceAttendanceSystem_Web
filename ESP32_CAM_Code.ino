@@ -1,15 +1,28 @@
 // ===============================
-// ESP32-CAM (AI Thinker) – FIXED & STABLE CODE
+// ESP32-CAM (AI Thinker) – CONFIGURABLE VIA SERIAL
 // Streams camera over WiFi
+// WiFi credentials stored in EEPROM, configurable via Python script
 // ===============================
 
 #include "esp_camera.h"
 #include <WiFi.h>
+#include <EEPROM.h>
 
 // ===============================
 // Camera model
 // ===============================
 #define CAMERA_MODEL_AI_THINKER
+
+// ===============================
+// EEPROM Configuration
+// ===============================
+#define EEPROM_SIZE 512
+#define SSID_ADDR 0
+#define SSID_LENGTH 32
+#define PASSWORD_ADDR 64
+#define PASSWORD_LENGTH 64
+#define CONFIG_FLAG_ADDR 128
+#define CONFIG_MAGIC 0xAB  // Magic byte to check if configured
 
 // ===============================
 // AI Thinker pin configuration
@@ -34,15 +47,131 @@
 #define PCLK_GPIO_NUM     22
 
 // ===============================
-// WiFi credentials
+// WiFi credentials (will be loaded from EEPROM or received via serial)
 // ===============================
-const char *ssid = "FaceAttendance-Pi";
-const char *password = "attendance2025";
+char ssid[SSID_LENGTH] = "";
+char password[PASSWORD_LENGTH] = "";
+
+// Default fallback credentials (if EEPROM empty)
+const char* default_ssid = "FaceAttendance-Pi";
+const char* default_password = "attendance2025";
 
 void startCameraServer();
 
+// ===============================
+// EEPROM Functions
+// ===============================
+void saveWiFiConfig(String newSSID, String newPassword) {
+  Serial.println("💾 Saving WiFi config to EEPROM...");
+  
+  // Clear EEPROM areas
+  for (int i = 0; i < SSID_LENGTH; i++) {
+    EEPROM.write(SSID_ADDR + i, 0);
+  }
+  for (int i = 0; i < PASSWORD_LENGTH; i++) {
+    EEPROM.write(PASSWORD_ADDR + i, 0);
+  }
+  
+  // Write SSID
+  for (int i = 0; i < newSSID.length() && i < SSID_LENGTH - 1; i++) {
+    EEPROM.write(SSID_ADDR + i, newSSID[i]);
+  }
+  
+  // Write Password
+  for (int i = 0; i < newPassword.length() && i < PASSWORD_LENGTH - 1; i++) {
+    EEPROM.write(PASSWORD_ADDR + i, newPassword[i]);
+  }
+  
+  // Set configuration flag
+  EEPROM.write(CONFIG_FLAG_ADDR, CONFIG_MAGIC);
+  
+  EEPROM.commit();
+  Serial.println("✅ CONFIGURED");
+}
+
+bool loadWiFiConfig() {
+  // Check if EEPROM has been configured
+  if (EEPROM.read(CONFIG_FLAG_ADDR) != CONFIG_MAGIC) {
+    Serial.println("⚠️  No saved WiFi config, using defaults");
+    strcpy(ssid, default_ssid);
+    strcpy(password, default_password);
+    return false;
+  }
+  
+  // Load SSID
+  for (int i = 0; i < SSID_LENGTH; i++) {
+    ssid[i] = EEPROM.read(SSID_ADDR + i);
+    if (ssid[i] == 0) break;
+  }
+  ssid[SSID_LENGTH - 1] = '\0';
+  
+  // Load Password
+  for (int i = 0; i < PASSWORD_LENGTH; i++) {
+    password[i] = EEPROM.read(PASSWORD_ADDR + i);
+    if (password[i] == 0) break;
+  }
+  password[PASSWORD_LENGTH - 1] = '\0';
+  
+  Serial.println("✅ Loaded WiFi config from EEPROM");
+  return true;
+}
+
+void checkSerialConfig() {
+  if (Serial.available() > 0) {
+    String input = Serial.readStringUntil('\n');
+    input.trim();
+    
+    // Format: WIFI_CONFIG:SSID:PASSWORD
+    if (input.startsWith("WIFI_CONFIG:")) {
+      int firstColon = input.indexOf(':', 12);
+      int secondColon = input.indexOf(':', firstColon + 1);
+      
+      if (firstColon > 0 && secondColon > 0) {
+        String newSSID = input.substring(12, firstColon);
+        String newPassword = input.substring(firstColon + 1, secondColon);
+        
+        Serial.println("\n📡 Received WiFi configuration:");
+        Serial.print("   SSID: ");
+        Serial.println(newSSID);
+        Serial.print("   Password: ");
+        Serial.println("********");
+        
+        saveWiFiConfig(newSSID, newPassword);
+        
+        Serial.println("\n🔄 Please RESET ESP32 to connect with new credentials");
+      }
+    }
+  }
+}
+
 void setup() {
   Serial.begin(115200);
+  Serial.println();
+  Serial.println("========================================");
+  Serial.println("ESP32-CAM Configurable WiFi");
+  Serial.println("========================================");
+
+  // Initialize EEPROM
+  EEPROM.begin(EEPROM_SIZE);
+  
+  // Wait for serial configuration (5 seconds)
+  Serial.println("\n⏳ Waiting for WiFi configuration...");
+  Serial.println("   (Send via Python script or press RESET to use saved/default)");
+  
+  unsigned long startTime = millis();
+  while (millis() - startTime < 5000) {
+    checkSerialConfig();
+    delay(100);
+  }
+  
+  // Load WiFi credentials
+  loadWiFiConfig();
+  
+  Serial.println("\n📡 WiFi Credentials:");
+  Serial.print("   SSID: ");
+  Serial.println(ssid);
+  Serial.print("   Password: ");
+  for (int i = 0; i < strlen(password); i++) Serial.print("*");
   Serial.println();
 
   camera_config_t config;
@@ -92,29 +221,47 @@ void setup() {
   // ===============================
   // Connect WiFi
   // ===============================
+  Serial.println("\n🔌 Connecting to WiFi...");
   WiFi.begin(ssid, password);
-  Serial.print("WiFi connecting");
-
-  while (WiFi.status() != WL_CONNECTED) {
+  
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
     delay(500);
     Serial.print(".");
+    attempts++;
   }
 
-  Serial.println("\nWiFi connected");
-  Serial.print("ESP32-CAM IP: ");
-  Serial.println(WiFi.localIP());
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n✅ WiFi Connected!");
+    Serial.print("   ESP32-CAM IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\n❌ WiFi connection failed!");
+    Serial.println("   Check SSID/Password in config.json");
+    Serial.println("   Run: python configure_esp32_wifi.py");
+    return;
+  }
 
   // ===============================
   // Start web server
   // ===============================
   startCameraServer();
 
-  Serial.println("Camera Ready!");
-  Serial.print("Stream URL: http://");
+  Serial.println("\n========================================");
+  Serial.println("✅ Camera Ready!");
+  Serial.println("========================================");
+  Serial.print("📹 Stream URL: http://");
   Serial.print(WiFi.localIP());
   Serial.println(":81/stream");
+  Serial.println("\n💡 To change WiFi:");
+  Serial.println("   1. Edit config/config.json on Pi");
+  Serial.println("   2. Run: python configure_esp32_wifi.py");
+  Serial.println("   3. Press RESET on ESP32");
+  Serial.println("========================================\n");
 }
 
 void loop() {
-  delay(10000);
+  // Check for configuration updates
+  checkSerialConfig();
+  delay(1000);
 }

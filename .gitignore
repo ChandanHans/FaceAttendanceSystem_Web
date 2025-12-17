@@ -18,8 +18,9 @@ face_data/*.pkl
 Student_Face/
 Staff_Face/
 
-# Configuration
-# config.json is now tracked in git
+# Configuration (keep credentials secret!)
+config/config.json
+ESP32_CAM_Code_Generated.ino
 
 # Database
 *.db
