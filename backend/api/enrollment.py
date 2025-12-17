@@ -318,13 +318,18 @@ def capture_server():
         captured_count = len(face_capturer.captured_images)
         target_count = face_capturer.target_count
         
-        return jsonify({
+        # Log the response data
+        logging.info(f"Server capture response: captured={should_capture}, count={captured_count}/{target_count}, msg='{status_message}'")
+        
+        response_data = {
             'captured': should_capture,
             'captured_count': captured_count,
             'total_required': target_count,
             'message': status_message,
             'complete': captured_count >= target_count
-        }), 200
+        }
+        
+        return jsonify(response_data), 200
         
     except Exception as e:
         logging.error(f"Server capture error: {e}")

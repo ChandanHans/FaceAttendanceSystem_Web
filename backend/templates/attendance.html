@@ -22,16 +22,7 @@
         <h1>Live Attendance Monitoring</h1>
         
         <div class="attendance-controls">
-            <div class="form-group">
-                <label for="cameraSource">Camera Source</label>
-                <select id="cameraSource">
-                    <option value="{{ config.camera_choice }}">ESP32-CAM Stream ({{ config.camera_choice }})</option>
-                    <option value="0">Built-in Camera</option>
-                    <option value="1">External Camera 1</option>
-                    <option value="2">External Camera 2</option>
-                </select>
-            </div>
-            
+            <p class="info-text">Camera will automatically detect: Physical camera → Streamed video</p>
             <button class="btn btn-success" id="toggleMonitoring">Start Monitoring</button>
         </div>
         

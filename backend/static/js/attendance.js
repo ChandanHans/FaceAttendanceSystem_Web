@@ -93,12 +93,9 @@ async function waitForVideoStream(maxWait = 3000) {
 
 // Start monitoring
 async function startMonitoring() {
-    let cameraSource = document.getElementById('cameraSource')?.value || 0;
-    
-    // If it's a number string, parse it; otherwise keep as string (URL)
-    if (!isNaN(cameraSource) && !cameraSource.includes('http')) {
-        cameraSource = parseInt(cameraSource);
-    }
+    console.log('🎥 Auto-detecting camera source...');
+    let cameraSource = await detectBestCamera();
+    console.log('📹 Using camera source:', cameraSource);
     
     const response = await apiCall('/attendance/start', {
         method: 'POST',
