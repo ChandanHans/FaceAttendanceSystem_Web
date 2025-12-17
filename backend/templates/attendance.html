@@ -25,6 +25,7 @@
             <div class="form-group">
                 <label for="cameraSource">Camera Source</label>
                 <select id="cameraSource">
+                    <option value="{{ config.camera_choice }}">ESP32-CAM Stream ({{ config.camera_choice }})</option>
                     <option value="0">Built-in Camera</option>
                     <option value="1">External Camera 1</option>
                     <option value="2">External Camera 2</option>

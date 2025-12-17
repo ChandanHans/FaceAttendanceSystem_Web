@@ -25,8 +25,12 @@ def init_attendance_routes(face_engine: FaceRecognitionEngine):
     global recognition_engine
     recognition_engine = face_engine
 
-def start_monitoring(camera_source: int = 0):
-    """Programmatic start for monitoring (used by app auto-start)"""
+def start_monitoring(camera_source = 0):
+    """Programmatic start for monitoring (used by app auto-start)
+    
+    Args:
+        camera_source: Camera index (int) or stream URL (str)
+    """
     global is_streaming, video_thread, video_capture, monitoring_start_time, is_initializing
 
     # Avoid duplicate start

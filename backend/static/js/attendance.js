@@ -93,11 +93,16 @@ async function waitForVideoStream(maxWait = 3000) {
 
 // Start monitoring
 async function startMonitoring() {
-    const cameraSource = document.getElementById('cameraSource')?.value || 0;
+    let cameraSource = document.getElementById('cameraSource')?.value || 0;
+    
+    // If it's a number string, parse it; otherwise keep as string (URL)
+    if (!isNaN(cameraSource) && !cameraSource.includes('http')) {
+        cameraSource = parseInt(cameraSource);
+    }
     
     const response = await apiCall('/attendance/start', {
         method: 'POST',
-        body: JSON.stringify({ camera_source: parseInt(cameraSource) })
+        body: JSON.stringify({ camera_source: cameraSource })
     });
     
     if (!response.ok) {

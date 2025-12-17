@@ -105,7 +105,10 @@ if __name__ == '__main__':
     # Auto-start monitoring if configured (use camera_choice)
     try:
         if config.get('auto_start_monitoring', False):
-            camera_src = int(config.get('camera_choice', 0))
+            camera_src = config.get('camera_choice', 0)
+            # Convert to int if it's a numeric string
+            if isinstance(camera_src, str) and camera_src.isdigit():
+                camera_src = int(camera_src)
             ok, msg = start_monitoring(camera_src)
             if ok:
                 logging.info(f"Auto-start monitoring: {msg} (camera {camera_src})")
