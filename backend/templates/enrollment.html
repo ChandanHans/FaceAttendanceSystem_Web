@@ -77,6 +77,15 @@
                         </div>
                     </div>
                     
+                    <div class="form-group">
+                        <label for="cameraSource">Camera Source</label>
+                        <select id="cameraSource">
+                            <option value="browser">Browser Camera (Recommended)</option>
+                            <option value="http://172.30.9.196:5001/video">Laptop Camera Server</option>
+                            <option value="server">Server-Side Camera</option>
+                        </select>
+                    </div>
+                    
                     <button type="submit" class="btn btn-primary" id="startCaptureBtn">Start Capture</button>
                 </form>
             </div>
@@ -133,7 +142,21 @@
         </div>
     </div>
     
+    <!-- Custom Dialog Modal -->
+    <div id="customDialog" class="dialog-overlay">
+        <div class="dialog-box">
+            <div class="dialog-icon" id="dialogIcon">ℹ️</div>
+            <h3 class="dialog-title" id="dialogTitle">Notification</h3>
+            <p class="dialog-message" id="dialogMessage"></p>
+            <div class="dialog-actions">
+                <button class="btn btn-primary" id="dialogOkBtn">OK</button>
+                <button class="btn btn-secondary" id="dialogCancelBtn" style="display:none;">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
     <script src="/static/js/auth.js"></script>
+    <script src="/static/js/dialog.js"></script>
     <script src="/static/js/enrollment.js"></script>
 </body>
 </html>

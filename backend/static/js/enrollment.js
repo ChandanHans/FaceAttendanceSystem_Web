@@ -174,9 +174,20 @@ async function startCamera() {
     const startCaptureBtn = document.getElementById('startCaptureBtn');
     if (startCaptureBtn) startCaptureBtn.disabled = true;
     
-    // Check browser compatibility
+    // Get selected camera source
+    const cameraSource = document.getElementById('cameraSource')?.value || 'browser';
+    console.log('Selected camera source:', cameraSource);
+    
+    // If HTTP stream or server-side camera is selected, use server-side processing
+    if (cameraSource !== 'browser') {
+        await startServerSideCapture(cameraSource);
+        return;
+    }
+    
+    // Check browser compatibility for browser camera
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        Dialog.error('Camera access not supported in this browser. Please use Chrome, Firefox, or Edge.');
+        console.warn('Browser camera not supported, trying alternatives...');
+        await tryAlternativeCameraSources();
         return;
     }
     
@@ -186,6 +197,13 @@ async function startCamera() {
         const videoDevices = devices.filter(device => device.kind === 'videoinput');
         
         console.log('Available cameras:', videoDevices.length);
+        
+        // If no cameras found, try alternatives
+        if (videoDevices.length === 0) {
+            console.warn('No browser cameras found, trying alternatives...');
+            await tryAlternativeCameraSources();
+            return;
+        }
         
         // Let user choose if multiple cameras available
         let selectedDeviceId = null;
@@ -233,22 +251,99 @@ async function startCamera() {
         console.log('Started capturing frames');
         
     } catch (error) {
-        console.error('Camera error:', error);
-        let errorMsg = 'Failed to access camera: ';
-        if (error.name === 'NotFoundError') {
-            errorMsg += 'No camera found. Please connect a camera.';
-        } else if (error.name === 'NotAllowedError') {
-            errorMsg += 'Camera access denied. Please allow camera permission.';
-        } else if (error.name === 'NotReadableError') {
-            errorMsg += 'Camera is already in use by another application.';
-        } else {
-            errorMsg += error.message;
-        }
-        Dialog.error(errorMsg);
+        console.error('Browser camera error:', error);
+        console.warn('Browser camera failed, trying alternatives...');
+        await tryAlternativeCameraSources();
+    }
+}
+
+async function tryAlternativeCameraSources() {
+    console.log('Attempting to use alternative camera sources...');
+    
+    // Try server-side camera as fallback
+    const confirmed = await Dialog.confirm(
+        'Browser camera not available. Would you like to use server-side camera capture instead?'
+    );
+    
+    if (confirmed) {
+        await startServerSideCapture('server');
+    } else {
+        Dialog.error('Camera access required for enrollment. Please connect a camera or use server-side capture.');
         const submitBtn = document.querySelector('#enrollmentForm button[type="submit"]');
-        if (submitBtn) submitBtn.disabled = false; // allow retry
-        const startCaptureBtn2 = document.getElementById('startCaptureBtn');
-        if (startCaptureBtn2) startCaptureBtn2.disabled = false;
+        if (submitBtn) submitBtn.disabled = false;
+        const startCaptureBtn = document.getElementById('startCaptureBtn');
+        if (startCaptureBtn) startCaptureBtn.disabled = false;
+    }
+}
+
+async function startServerSideCapture(source) {
+    console.log('Starting server-side capture with source:', source);
+    
+    try {
+        // Show capture panel and hide form
+        document.getElementById('capturePanel').style.display = 'block';
+        document.getElementById('enrollmentForm').style.display = 'none';
+        document.getElementById('cancelBtn').style.display = 'inline-block';
+        
+        // Show info message
+        Dialog.info('Using server-side camera. Please position yourself in front of the camera.');
+        
+        // Start capturing using server
+        capturing = true;
+        captureInterval = setInterval(captureFrameFromServer, 1000); // Slower interval for server-side
+        console.log('Started server-side frame capture');
+        
+        // Display message in video area
+        video = document.getElementById('video');
+        const videoContainer = video.parentElement;
+        const statusDiv = document.getElementById('captureStatus');
+        statusDiv.textContent = 'Using server-side camera capture';
+        statusDiv.style.display = 'block';
+        
+    } catch (error) {
+        console.error('Server-side capture error:', error);
+        Dialog.error('Failed to start server-side capture: ' + error.message);
+        const submitBtn = document.querySelector('#enrollmentForm button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = false;
+        const startCaptureBtn = document.getElementById('startCaptureBtn');
+        if (startCaptureBtn) startCaptureBtn.disabled = false;
+    }
+}
+
+async function captureFrameFromServer() {
+    if (!capturing || !sessionId) return;
+    if (isCaptureBusy) return;
+    
+    isCaptureBusy = true;
+    
+    try {
+        // Request server to capture from its camera
+        const response = await apiCall('/enrollment/capture_server', {
+            method: 'POST',
+            body: JSON.stringify({ session_id: sessionId })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Server capture result:', result);
+            
+            if (result.captured) {
+                updateProgress(result.captured_count, result.total_required);
+                
+                if (result.captured_count >= result.total_required) {
+                    stopCapturing();
+                    document.getElementById('completeBtn').style.display = 'inline-block';
+                    Dialog.success('All images captured! You can now complete enrollment.');
+                }
+            }
+        } else {
+            const error = await response.json();
+            console.error('Server capture error:', error);
+        }
+    } catch (error) {
+        console.error('Server capture request error:', error);
+    } finally {
+        isCaptureBusy = false;
     }
 }
 

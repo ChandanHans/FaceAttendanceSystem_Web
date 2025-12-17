@@ -274,6 +274,62 @@ def complete_enrollment():
         logging.error(f"Enrollment error: {e}")
         return jsonify({'error': f'Enrollment failed: {str(e)}'}), 500
 
+@enrollment_bp.route('/capture_server', methods=['POST'])
+@jwt_required()
+def capture_server():
+    """Capture frame using server-side camera"""
+    data = request.get_json()
+    session_id = data.get('session_id')
+    
+    if session_id not in enrollment_sessions:
+        return jsonify({'error': 'Invalid session ID'}), 400
+    
+    session = enrollment_sessions[session_id]
+    face_capturer = session['face_capturer']
+    
+    try:
+        # Get camera configuration
+        import json
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        config_path = os.path.join(project_root, 'config', 'config.json')
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        
+        camera_src = config.get('camera_choice', 0)
+        # Convert to int if it's a numeric string
+        if isinstance(camera_src, str) and camera_src.isdigit():
+            camera_src = int(camera_src)
+        
+        # Open camera
+        cap = cv2.VideoCapture(camera_src)
+        if not cap.isOpened():
+            return jsonify({'error': 'Failed to open server camera'}), 500
+        
+        # Capture frame
+        ret, frame = cap.read()
+        cap.release()
+        
+        if not ret or frame is None:
+            return jsonify({'error': 'Failed to capture frame'}), 500
+        
+        # Process frame using server-side face recognition
+        should_capture, face_img, status_message = face_capturer.process_frame(frame)
+        
+        captured_count = len(face_capturer.captured_images)
+        target_count = face_capturer.target_count
+        
+        return jsonify({
+            'captured': should_capture,
+            'captured_count': captured_count,
+            'total_required': target_count,
+            'message': status_message,
+            'complete': captured_count >= target_count
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"Server capture error: {e}")
+        return jsonify({'error': f'Server capture failed: {str(e)}'}), 500
+
 @enrollment_bp.route('/cancel', methods=['POST'])
 @jwt_required()
 def cancel_enrollment():

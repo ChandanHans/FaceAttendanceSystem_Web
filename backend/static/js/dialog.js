@@ -68,6 +68,10 @@ const Dialog = {
         return this.show({ title, message, type: 'info' });
     },
     
+    info(message, title = 'Information') {
+        return this.show({ title, message, type: 'info' });
+    },
+    
     success(message, title = 'Success') {
         return this.show({ title, message, type: 'success' });
     },
