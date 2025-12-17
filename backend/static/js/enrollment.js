@@ -254,6 +254,11 @@ async function startCamera() {
         document.getElementById('capturePanel').style.display = 'block';
         document.getElementById('enrollmentForm').style.display = 'none';
         document.getElementById('cancelBtn').style.display = 'inline-block';
+        
+        // Show video element for browser camera
+        video.style.display = 'block';
+        document.getElementById('serverCameraPlaceholder').style.display = 'none';
+        
         if (startCaptureBtn) startCaptureBtn.disabled = true; // ensure disabled while auto-capturing
         
         capturing = true;
@@ -288,20 +293,20 @@ async function startServerSideCapture(source) {
             message: 'Starting server-side camera capture...'
         });
         
-        // Show info message
-        Dialog.info('Using server-side camera. Please position yourself in front of the camera.');
+        // Hide video element, show server camera placeholder
+        const videoElement = document.getElementById('video');
+        const placeholder = document.getElementById('serverCameraPlaceholder');
+        if (videoElement) videoElement.style.display = 'none';
+        if (placeholder) placeholder.style.display = 'block';
+        
+        // Update info text
+        const captureInfo = document.getElementById('captureInfo');
+        if (captureInfo) captureInfo.textContent = 'Using server-side camera. Images are being captured automatically.';
         
         // Start capturing using server
         capturing = true;
         captureInterval = setInterval(captureFrameFromServer, 1500); // Slower interval for server-side
         console.log('Started server-side frame capture');
-        
-        // Display message in video area
-        video = document.getElementById('video');
-        const videoContainer = video.parentElement;
-        const statusDiv = document.getElementById('captureStatus');
-        statusDiv.textContent = 'Using server-side camera capture - Position yourself in front of camera';
-        statusDiv.style.display = 'block';
         
     } catch (error) {
         console.error('Server-side capture error:', error);
@@ -586,6 +591,16 @@ function resetEnrollment() {
     document.getElementById('enrollmentForm').reset();
     document.getElementById('enrollmentForm').style.display = 'flex';
     document.getElementById('capturePanel').style.display = 'none';
+    
+    // Reset video/camera display
+    const videoElement = document.getElementById('video');
+    const placeholder = document.getElementById('serverCameraPlaceholder');
+    if (videoElement) videoElement.style.display = 'none';
+    if (placeholder) placeholder.style.display = 'none';
+    
+    // Reset capture info text
+    const captureInfo = document.getElementById('captureInfo');
+    if (captureInfo) captureInfo.textContent = 'System will capture 5 images from different angles. Turn your head slowly to capture varied poses.';
     
     // Reset progress
     document.getElementById('progressFill').style.width = '0%';

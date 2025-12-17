@@ -83,13 +83,17 @@
                 </form>
             </div>
             
-            <div class="camera-section">
+            <div class="camera-section" id="capturePanel" style="display: none;">
                 <h2>Face Capture</h2>
-                <p class="info-text">System will capture 5 images from different angles. Turn your head slowly to capture varied poses.</p>
+                <p class="info-text" id="captureInfo">System will capture 5 images from different angles. Turn your head slowly to capture varied poses.</p>
                 
                 <div class="camera-container">
-                    <video id="video" autoplay></video>
+                    <video id="video" autoplay style="display: none;"></video>
                     <canvas id="canvas" style="display: none;"></canvas>
+                    <div id="serverCameraPlaceholder" style="display: none; padding: 60px; text-align: center; background: #f0f0f0; border-radius: 8px;">
+                        <h3>📷 Using Server-Side Camera</h3>
+                        <p>Please position yourself in front of the server's camera</p>
+                    </div>
                     <div id="captureStatus" class="capture-status"></div>
                 </div>
                 
