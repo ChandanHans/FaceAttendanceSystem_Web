@@ -174,20 +174,30 @@ async function startCamera() {
     const startCaptureBtn = document.getElementById('startCaptureBtn');
     if (startCaptureBtn) startCaptureBtn.disabled = true;
     
-    // Get selected camera source
-    const cameraSource = document.getElementById('cameraSource')?.value || 'browser';
-    console.log('Selected camera source:', cameraSource);
+    console.log('🎥 Auto-detecting camera source...');
     
-    // If HTTP stream or server-side camera is selected, use server-side processing
-    if (cameraSource !== 'browser') {
-        await startServerSideCapture(cameraSource);
-        return;
-    }
-    
-    // Check browser compatibility for browser camera
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        console.warn('Browser camera not supported, trying alternatives...');
-        await tryAlternativeCameraSources();
+    // Try browser camera first
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            
+            if (videoDevices.length > 0) {
+                console.log('✅ Browser camera available, using it');
+                // Continue with browser camera
+            } else {
+                console.warn('⚠️ No browser cameras found, trying server-side...');
+                await startServerSideCapture('server');
+                return;
+            }
+        } catch (error) {
+            console.warn('⚠️ Browser camera check failed, trying server-side...', error);
+            await startServerSideCapture('server');
+            return;
+        }
+    } else {
+        console.warn('⚠️ Browser camera not supported, trying server-side...');
+        await startServerSideCapture('server');
         return;
     }
     
@@ -258,22 +268,8 @@ async function startCamera() {
 }
 
 async function tryAlternativeCameraSources() {
-    console.log('Attempting to use alternative camera sources...');
-    
-    // Try server-side camera as fallback
-    const confirmed = await Dialog.confirm(
-        'Browser camera not available. Would you like to use server-side camera capture instead?'
-    );
-    
-    if (confirmed) {
-        await startServerSideCapture('server');
-    } else {
-        Dialog.error('Camera access required for enrollment. Please connect a camera or use server-side capture.');
-        const submitBtn = document.querySelector('#enrollmentForm button[type="submit"]');
-        if (submitBtn) submitBtn.disabled = false;
-        const startCaptureBtn = document.getElementById('startCaptureBtn');
-        if (startCaptureBtn) startCaptureBtn.disabled = false;
-    }
+    console.log('⚠️ Browser camera not available, automatically switching to server-side camera...');
+    await startServerSideCapture('server');
 }
 
 async function startServerSideCapture(source) {

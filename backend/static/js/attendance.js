@@ -91,6 +91,47 @@ async function waitForVideoStream(maxWait = 3000) {
     });
 }
 
+// Auto-detect best available camera
+async function detectBestCamera() {
+    console.log('🔍 Detecting available cameras...');
+    
+    // Try physical cameras first (0, 1, 2)
+    for (let i = 0; i <= 2; i++) {
+        console.log(`Testing camera ${i}...`);
+        try {
+            const testResponse = await fetch('/api/attendance/test-camera', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+                },
+                body: JSON.stringify({ camera_source: i })
+            });
+            
+            if (testResponse.ok) {
+                const result = await testResponse.json();
+                if (result.available) {
+                    console.log(`✅ Physical camera ${i} available`);
+                    return i;
+                }
+            }
+        } catch (error) {
+            console.log(`❌ Camera ${i} not available`);
+        }
+    }
+    
+    // Fallback to configured stream
+    console.log('⚠️ No physical camera found, using configured stream');
+    try {
+        const configResponse = await fetch('/api/attendance/config');
+        const config = await configResponse.json();
+        return config.camera_choice || 'http://172.30.9.196:5001/video';
+    } catch (error) {
+        console.warn('Failed to get config, using default stream');
+        return 'http://172.30.9.196:5001/video';
+    }
+}
+
 // Start monitoring
 async function startMonitoring() {
     console.log('🎥 Auto-detecting camera source...');

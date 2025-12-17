@@ -105,6 +105,39 @@ def generate_video_stream():
         except queue.Empty:
             continue
 
+@attendance_bp.route('/test-camera', methods=['POST'])
+@jwt_required()
+def test_camera():
+    """Test if a camera source is available"""
+    data = request.get_json()
+    camera_source = data.get('camera_source', 0)
+    
+    try:
+        cap = cv2.VideoCapture(camera_source)
+        if cap.isOpened():
+            ret, frame = cap.read()
+            cap.release()
+            if ret and frame is not None:
+                logging.info(f"✅ Camera {camera_source} is available")
+                return jsonify({'available': True, 'source': camera_source}), 200
+        cap.release()
+        logging.info(f"❌ Camera {camera_source} not available")
+        return jsonify({'available': False, 'source': camera_source}), 200
+    except Exception as e:
+        logging.error(f"Camera test error for {camera_source}: {e}")
+        return jsonify({'available': False, 'source': camera_source, 'error': str(e)}), 200
+
+@attendance_bp.route('/config', methods=['GET'])
+def get_config():
+    """Get camera configuration"""
+    import json
+    import os
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    config_path = os.path.join(project_root, 'config', 'config.json')
+    with open(config_path, 'r') as f:
+        config = json.load(f)
+    return jsonify({'camera_choice': config.get('camera_choice', 0)}), 200
+
 @attendance_bp.route('/start', methods=['POST'])
 @jwt_required()
 def start_attendance():
