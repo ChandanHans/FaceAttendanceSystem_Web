@@ -27,7 +27,7 @@ class LCDDisplay:
         """
         self.lcd = None
         self.enabled = False
-        self.last_name = None
+        self.last_person_id = None  # Track currently displayed person
         self.clear_timer = None
         self.display_timeout = 5  # Clear display after 5 seconds
         
@@ -66,13 +66,14 @@ class LCDDisplay:
             logging.error(f"❌ LCD write error: {e}")
             self.enabled = False
     
-    def show_name(self, name: str, role: str = ""):
+    def show_name(self, name: str, role: str = "", person_id: str = ""):
         """
         Display person's name and role on LCD
         
         Args:
             name: Person's name (max 16 chars for line 1)
             role: Person's role (max 16 chars for line 2)
+            person_id: Person's ID to track who is displayed
         """
         if not self.enabled:
             return
@@ -81,9 +82,10 @@ class LCDDisplay:
         if self.clear_timer:
             self.clear_timer.cancel()
         
-        # Avoid duplicate updates
-        display_text = f"{name}|{role}"
-        if display_text == self.last_name:
+        # If same person detected, just reset the timer (don't update display)
+        if person_id and person_id == self.last_person_id:
+            self.clear_timer = threading.Timer(self.display_timeout, self._auto_clear)
+            self.clear_timer.start()
             return
         
         try:
@@ -100,7 +102,7 @@ class LCDDisplay:
             else:
                 self.lcd.write_string("\n\rWelcome!")
             
-            self.last_name = display_text
+            self.last_person_id = person_id if person_id else name
             logging.debug(f"LCD: {name} ({role})")
             
             # Schedule auto-clear after timeout
@@ -117,24 +119,10 @@ class LCDDisplay:
             return
         try:
             self.lcd.clear()
-            self.lcd.write_string("Scanning...\n\rLook at camera")
-            self.last_name = None
+            self.last_person_id = None
             logging.debug("LCD auto-cleared")
         except Exception as e:
             logging.error(f"LCD auto-clear error: {e}")
-    
-    def show_unknown(self):
-        """Display message for unknown person"""
-        if not self.enabled:
-            return
-        
-        try:
-            self.lcd.clear()
-            self.lcd.write_string("Unknown Person\n\rAccess Denied")
-            self.last_name = "unknown"
-        except Exception as e:
-            logging.error(f"LCD write error: {e}")
-            self.enabled = False
     
     def show_waiting(self):
         """Display waiting/scanning message"""
@@ -144,7 +132,7 @@ class LCDDisplay:
         try:
             self.lcd.clear()
             self.lcd.write_string("Scanning...\n\rLook at camera")
-            self.last_name = "waiting"
+            self.last_person_id = None
         except Exception as e:
             logging.error(f"LCD write error: {e}")
             self.enabled = False
@@ -169,7 +157,7 @@ class LCDDisplay:
                 line2 = line2[:16]
                 self.lcd.write_string(f"\n\r{line2}")
             
-            self.last_name = None  # Allow update next time
+            self.last_person_id = None  # Allow update next time
         except Exception as e:
             logging.error(f"LCD write error: {e}")
             self.enabled = False
@@ -181,7 +169,7 @@ class LCDDisplay:
         
         try:
             self.lcd.clear()
-            self.last_name = None
+            self.last_person_id = None
         except Exception as e:
             logging.error(f"LCD write error: {e}")
             self.enabled = False

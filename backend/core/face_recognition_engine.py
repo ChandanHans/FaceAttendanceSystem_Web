@@ -242,7 +242,7 @@ class FaceRecognitionEngine:
                 
                 # Display on LCD if available
                 if self.lcd:
-                    self.lcd.show_name(name, role)
+                    self.lcd.show_name(name, role, person_id)
             else:
                 # Unknown face
                 top = int(face_location.top() / scale)
@@ -256,9 +256,7 @@ class FaceRecognitionEngine:
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2
                 )
                 
-                # Display on LCD if available
-                if self.lcd:
-                    self.lcd.show_unknown()
+                # Don't show unknown persons on LCD
         
         return frame, detected_persons
     
