@@ -151,18 +151,23 @@ function startServerSideCapture() {
     document.getElementById('cancelBtn').style.display = 'inline-block';
     document.getElementById('completeBtn').style.display = 'none';
     
+    // Start video preview from server stream
+    const preview = document.getElementById('cameraPreview');
+    if (preview) {
+        preview.src = `${window.location.origin}/api/enrollment/preview_stream?session_id=${sessionId}&t=${Date.now()}`;
+        preview.style.display = 'block';
+        preview.onerror = () => {
+            console.warn('Video preview not available, continuing with capture');
+            preview.style.display = 'none';
+        };
+    }
+    
     // Update progress display
     updateProgress({
         count: 0,
         target: 5,
         message: 'Capturing from server camera...'
     });
-    
-    // Update info text
-    const captureInfo = document.getElementById('captureInfo');
-    if (captureInfo) {
-        captureInfo.textContent = 'Using server camera. Please look at the camera and turn your head slowly.';
-    }
     
     // Start capturing
     capturing = true;
@@ -305,6 +310,13 @@ function resetEnrollment() {
         clearInterval(captureInterval);
     }
     
+    // Stop video preview
+    const preview = document.getElementById('cameraPreview');
+    if (preview) {
+        preview.src = '';
+        preview.style.display = 'none';
+    }
+    
     sessionId = null;
     
     // Reset and show form, hide capture panel
@@ -315,7 +327,7 @@ function resetEnrollment() {
     // Reset info text
     const captureInfo = document.getElementById('captureInfo');
     if (captureInfo) {
-        captureInfo.textContent = 'System will capture 5 images from different angles using server camera.';
+        captureInfo.textContent = 'System will capture 5 images from different angles.';
     }
     
     // Reset progress

@@ -268,6 +268,48 @@ def capture_server():
         logging.error(f"Server capture error: {e}")
         return jsonify({'error': f'Server capture failed: {str(e)}'}), 500
 
+@enrollment_bp.route('/preview_stream')
+def preview_stream():
+    """Stream video preview during enrollment"""
+    from flask import Response
+    
+    def generate_preview():
+        """Generate frames for preview"""
+        import json
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        config_path = os.path.join(project_root, 'config', 'config.json')
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        
+        camera_src = config.get('camera_choice', 0)
+        if isinstance(camera_src, str) and camera_src.isdigit():
+            camera_src = int(camera_src)
+        
+        cap = cv2.VideoCapture(camera_src)
+        if not cap.isOpened():
+            logging.error(f"Failed to open camera for preview: {camera_src}")
+            return
+        
+        try:
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                
+                # Encode frame as JPEG
+                ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                if not ret:
+                    continue
+                
+                frame_bytes = buffer.tobytes()
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+        finally:
+            cap.release()
+    
+    return Response(generate_preview(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
 @enrollment_bp.route('/cancel', methods=['POST'])
 @jwt_required()
 def cancel_enrollment():
