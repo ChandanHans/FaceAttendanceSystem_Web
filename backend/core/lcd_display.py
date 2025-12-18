@@ -3,6 +3,7 @@ I2C LCD Display Module for 16x2 Character Display
 Shows recognized person names on physical LCD screen
 """
 import logging
+import threading
 from typing import Optional
 
 try:
@@ -27,6 +28,8 @@ class LCDDisplay:
         self.lcd = None
         self.enabled = False
         self.last_name = None
+        self.clear_timer = None
+        self.display_timeout = 5  # Clear display after 5 seconds
         
         if not LCD_AVAILABLE:
             logging.info("LCD display disabled - RPLCD not installed")
@@ -74,6 +77,10 @@ class LCDDisplay:
         if not self.enabled:
             return
         
+        # Cancel any pending clear timer
+        if self.clear_timer:
+            self.clear_timer.cancel()
+        
         # Avoid duplicate updates
         display_text = f"{name}|{role}"
         if display_text == self.last_name:
@@ -96,9 +103,25 @@ class LCDDisplay:
             self.last_name = display_text
             logging.debug(f"LCD: {name} ({role})")
             
+            # Schedule auto-clear after timeout
+            self.clear_timer = threading.Timer(self.display_timeout, self._auto_clear)
+            self.clear_timer.start()
+            
         except Exception as e:
             logging.error(f"LCD write error: {e}")
             self.enabled = False
+    
+    def _auto_clear(self):
+        """Automatically clear display after timeout"""
+        if not self.enabled:
+            return
+        try:
+            self.lcd.clear()
+            self.lcd.write_string("Scanning...\n\rLook at camera")
+            self.last_name = None
+            logging.debug("LCD auto-cleared")
+        except Exception as e:
+            logging.error(f"LCD auto-clear error: {e}")
     
     def show_unknown(self):
         """Display message for unknown person"""

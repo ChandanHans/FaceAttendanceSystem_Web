@@ -127,37 +127,9 @@
                                     </select>
                                 </div>
 
-                                <div class="processing-mode">
-                                    <div class="mode-header">
-                                        <label for="processingToggle">Processing Mode</label>
-                                        <span class="info-icon" title="Choose how faces are processed">
-                                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                                                <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/>
-                                                <text x="8" y="11" text-anchor="middle" font-size="11" font-weight="bold" fill="currentColor">i</text>
-                                            </svg>
-                                            <div class="tooltip">
-                                                <strong>Client-Side Processing:</strong><br>
-                                                • Runs in your browser (face-api.js)<br>
-                                                • Lightweight on server (sends 512 bytes)<br>
-                                                • Requires modern browser<br>
-                                                • Best for Raspberry Pi<br><br>
-                                                <strong>Server-Side Processing:</strong><br>
-                                                • Runs on server (dlib)<br>
-                                                • Heavy on server (sends ~50KB per frame)<br>
-                                                • Works on any browser<br>
-                                                • Use if client fails
-                                            </div>
-                                        </span>
-                                    </div>
-                                    <div class="toggle-container">
-                                        <span class="toggle-label">Server</span>
-                                        <label class="toggle-switch">
-                                            <input type="checkbox" id="processingToggle" checked>
-                                            <span class="toggle-slider"></span>
-                                        </label>
-                                        <span class="toggle-label">Client</span>
-                                    </div>
-                                </div>
+                                <p class="info-text" style="font-size: 12px; color: #666; margin: 10px 0;">
+                                    Using server-side face processing for optimal performance
+                                </p>
 
                                 <button type="submit" class="btn btn-primary btn-block" id="startCaptureBtn">
                                     Start Capture
