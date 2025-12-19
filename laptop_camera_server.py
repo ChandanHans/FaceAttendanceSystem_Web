@@ -11,6 +11,7 @@ The camera will be available at: http://YOUR_LAPTOP_IP:5001/video
 """
 
 from flask import Flask, Response
+from flask_cors import CORS
 import cv2
 import socket
 import logging
@@ -22,6 +23,7 @@ logging.basicConfig(
 )
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
 # Global camera object
 camera = None

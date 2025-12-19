@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Preview Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        .video-container {
+            position: relative;
+            min-height: 480px;
+            background: #000;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            background: #e3f2fd;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #1976D2;
+        }
+        .log {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .log-entry {
+            margin: 3px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Camera Preview Test Page</h1>
+        <p>This page helps debug camera streaming issues.</p>
+
+        <div class="test-section">
+            <h3>Test 1: Direct Laptop Camera URL</h3>
+            <div class="status" id="status1">Status: Not Started</div>
+            <button onclick="testDirectURL()">Test Direct URL</button>
+            <div class="video-container">
+                <img id="preview1" src="" alt="Direct camera feed" style="display: none;">
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 2: Pi Preview Stream Endpoint</h3>
+            <div class="status" id="status2">Status: Not Started</div>
+            <button onclick="testPiStream()">Test Pi Stream</button>
+            <div class="video-container">
+                <img id="preview2" src="" alt="Pi stream" style="display: none;">
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 3: Get Camera Config</h3>
+            <div class="status" id="status3">Status: Not Started</div>
+            <button onclick="testCameraConfig()">Test Config</button>
+            <div class="log" id="configLog"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Console Log</h3>
+            <div class="log" id="consoleLog"></div>
+        </div>
+    </div>
+
+    <script>
+        function log(message) {
+            const consoleLog = document.getElementById('consoleLog');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleLog.appendChild(entry);
+            consoleLog.scrollTop = consoleLog.scrollHeight;
+            console.log(message);
+        }
+
+        async function testDirectURL() {
+            log('Testing direct laptop camera URL...');
+            const status = document.getElementById('status1');
+            const preview = document.getElementById('preview1');
+            
+            status.textContent = 'Status: Fetching config...';
+            
+            try {
+                const response = await fetch('/api/enrollment/camera_config');
+                if (response.ok) {
+                    const config = await response.json();
+                    log(`Camera config: ${JSON.stringify(config)}`);
+                    
+                    const cameraUrl = config.camera_choice;
+                    log(`Camera URL: ${cameraUrl}`);
+                    
+                    if (typeof cameraUrl === 'string' && cameraUrl.startsWith('http')) {
+                        status.textContent = `Status: Loading ${cameraUrl}`;
+                        preview.src = cameraUrl;
+                        preview.style.display = 'block';
+                        
+                        preview.onload = () => {
+                            status.textContent = 'Status: ✅ Stream loaded successfully!';
+                            log('✅ Direct URL stream loaded');
+                        };
+                        
+                        preview.onerror = (e) => {
+                            status.textContent = '❌ Status: Failed to load stream';
+                            log(`❌ Error loading stream: ${e}`);
+                        };
+                    } else {
+                        status.textContent = 'Status: Camera is not an HTTP URL';
+                        log(`Camera choice is not HTTP: ${cameraUrl}`);
+                    }
+                } else {
+                    status.textContent = '❌ Status: Failed to fetch config';
+                    log('Failed to fetch camera config');
+                }
+            } catch (error) {
+                status.textContent = `❌ Status: Error - ${error.message}`;
+                log(`Error: ${error.message}`);
+            }
+        }
+
+        async function testPiStream() {
+            log('Testing Pi preview stream endpoint...');
+            const status = document.getElementById('status2');
+            const preview = document.getElementById('preview2');
+            
+            const streamUrl = `${window.location.origin}/api/enrollment/preview_stream?t=${Date.now()}`;
+            log(`Stream URL: ${streamUrl}`);
+            
+            status.textContent = `Status: Loading ${streamUrl}`;
+            preview.src = streamUrl;
+            preview.style.display = 'block';
+            
+            preview.onload = () => {
+                status.textContent = 'Status: ✅ Stream loaded successfully!';
+                log('✅ Pi stream loaded');
+            };
+            
+            preview.onerror = (e) => {
+                status.textContent = '❌ Status: Failed to load stream';
+                log(`❌ Error loading Pi stream: ${e}`);
+            };
+        }
+
+        async function testCameraConfig() {
+            log('Testing camera configuration endpoint...');
+            const status = document.getElementById('status3');
+            const configLog = document.getElementById('configLog');
+            
+            status.textContent = 'Status: Fetching...';
+            
+            try {
+                const response = await fetch('/api/enrollment/camera_config');
+                if (response.ok) {
+                    const config = await response.json();
+                    status.textContent = 'Status: ✅ Config fetched successfully!';
+                    configLog.textContent = JSON.stringify(config, null, 2);
+                    log(`Config: ${JSON.stringify(config)}`);
+                } else {
+                    status.textContent = `❌ Status: HTTP ${response.status}`;
+                    configLog.textContent = `Error: ${response.status} ${response.statusText}`;
+                    log(`Config fetch failed: ${response.status}`);
+                }
+            } catch (error) {
+                status.textContent = `❌ Status: ${error.message}`;
+                configLog.textContent = `Error: ${error.message}`;
+                log(`Config error: ${error.message}`);
+            }
+        }
+
+        // Initial log
+        log('Test page loaded');
+        log(`Current origin: ${window.location.origin}`);
+    </script>
+</body>
+</html>

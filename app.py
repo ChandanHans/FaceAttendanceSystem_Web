@@ -82,6 +82,11 @@ def create_app():
         """Enrollment page"""
         return render_template('enrollment.html')
     
+    @app.route('/test-camera')
+    def test_camera_page():
+        """Camera test page"""
+        return send_from_directory('.', 'test_camera_preview.html')
+    
     @app.route('/attendance')
     def attendance_page():
         """Attendance monitoring page"""
