@@ -286,13 +286,13 @@ def get_camera_config():
         logging.error(f"Error reading camera config: {e}")
         return jsonify({'error': 'Could not read camera config'}), 500
 
-@enrollment_bp.route('/preview_stream')
-def preview_stream():
-    """Stream video preview during enrollment"""
+@enrollment_bp.route('/raw_stream')
+def raw_stream():
+    """Stream raw video feed without any processing"""
     from flask import Response
     
-    def generate_preview():
-        """Generate frames for preview"""
+    def generate_raw_stream():
+        """Generate raw video frames"""
         import json
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         config_path = os.path.join(project_root, 'config', 'config.json')
@@ -305,7 +305,7 @@ def preview_stream():
         
         cap = cv2.VideoCapture(camera_src)
         if not cap.isOpened():
-            logging.error(f"Failed to open camera for preview: {camera_src}")
+            logging.error(f"Failed to open camera for raw stream: {camera_src}")
             return
         
         try:
@@ -314,8 +314,8 @@ def preview_stream():
                 if not ret:
                     break
                 
-                # Encode frame as JPEG
-                ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                # Encode frame as JPEG with high quality for raw display
+                ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
                 if not ret:
                     continue
                 
@@ -325,8 +325,13 @@ def preview_stream():
         finally:
             cap.release()
     
-    return Response(generate_preview(),
+    return Response(generate_raw_stream(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@enrollment_bp.route('/preview_stream')
+def preview_stream():
+    """Stream video preview during enrollment (legacy endpoint - redirects to raw_stream)"""
+    return raw_stream()
 
 @enrollment_bp.route('/cancel', methods=['POST'])
 @jwt_required()

@@ -151,15 +151,15 @@ async function startServerSideCapture() {
     document.getElementById('cancelBtn').style.display = 'inline-block';
     document.getElementById('completeBtn').style.display = 'none';
     
-    // Start video preview from server stream
+    // Display raw video stream directly
     const preview = document.getElementById('cameraPreview');
     const statusText = document.getElementById('captureStatus');
     
     if (preview) {
-        console.log('Setting up camera preview stream...');
+        console.log('Setting up direct video stream display...');
         
         try {
-            // Try to get camera config to determine the right stream URL
+            // Get camera config to determine the stream source
             const configResponse = await fetch('/api/enrollment/camera_config');
             let streamUrl;
             
@@ -169,39 +169,40 @@ async function startServerSideCapture() {
                 
                 console.log('Camera choice from config:', cameraChoice);
                 
-                // If camera_choice is an HTTP URL, use it directly (laptop camera server)
+                // Always display the raw stream directly
                 if (typeof cameraChoice === 'string' && cameraChoice.startsWith('http')) {
+                    // Use laptop camera server stream directly
                     streamUrl = cameraChoice;
-                    console.log('Using direct camera URL:', streamUrl);
+                    console.log('📹 Displaying direct stream from:', streamUrl);
                 } else {
-                    // Otherwise use the Pi's preview stream endpoint
-                    streamUrl = `${window.location.origin}/api/enrollment/preview_stream?session_id=${sessionId}&t=${Date.now()}`;
-                    console.log('Using Pi preview stream:', streamUrl);
+                    // Use local camera via Pi's raw stream endpoint
+                    streamUrl = `/api/enrollment/raw_stream?t=${Date.now()}`;
+                    console.log('📹 Displaying Pi camera stream:', streamUrl);
                 }
             } else {
-                // Fallback to Pi preview stream
-                streamUrl = `${window.location.origin}/api/enrollment/preview_stream?session_id=${sessionId}&t=${Date.now()}`;
-                console.log('Using fallback preview stream:', streamUrl);
+                // Fallback to Pi raw stream
+                streamUrl = `/api/enrollment/raw_stream?t=${Date.now()}`;
+                console.log('📹 Using fallback stream:', streamUrl);
             }
             
             preview.src = streamUrl;
             preview.style.display = 'block';
             
             preview.onload = () => {
-                console.log('✅ Camera preview loaded successfully');
-                if (statusText) statusText.textContent = 'Camera ready - capturing faces...';
+                console.log('✅ Video stream loaded successfully');
+                if (statusText) statusText.textContent = 'Live camera feed - capturing faces...';
             };
             
             preview.onerror = (e) => {
-                console.error('❌ Video preview error:', e);
-                console.warn('Video preview not available, continuing with capture');
+                console.error('❌ Video stream error:', e);
+                console.warn('Video stream not available, continuing with capture');
                 preview.style.display = 'none';
-                if (statusText) statusText.textContent = 'Camera preview unavailable - capture continues in background';
+                if (statusText) statusText.textContent = 'Camera stream unavailable - capture continues in background';
             };
         } catch (error) {
             console.error('Error getting camera config:', error);
-            // Fallback to standard preview endpoint
-            const streamUrl = `${window.location.origin}/api/enrollment/preview_stream?session_id=${sessionId}&t=${Date.now()}`;
+            // Fallback to raw stream endpoint
+            const streamUrl = `/api/enrollment/raw_stream?t=${Date.now()}`;
             preview.src = streamUrl;
             preview.style.display = 'block';
         }
