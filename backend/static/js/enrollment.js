@@ -146,56 +146,75 @@ async function startServerSideCapture() {
     console.log('🎥 Starting server-side camera capture...');
     
     // Show capture panel and hide form
-    document.getElementById('capturePanel').style.display = 'block';
-    document.getElementById('enrollmentForm').style.display = 'none';
-    document.getElementById('cancelBtn').style.display = 'inline-block';
-    document.getElementById('completeBtn').style.display = 'none';
+    const capturePanel = document.getElementById('capturePanel');
+    const enrollmentForm = document.getElementById('enrollmentForm');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const completeBtn = document.getElementById('completeBtn');
     
-    // Start video preview - simple approach like attendance monitoring
-    const preview = document.getElementById('cameraPreview');
+    if (capturePanel) capturePanel.style.display = 'block';
+    if (enrollmentForm) enrollmentForm.style.display = 'none';
+    if (cancelBtn) cancelBtn.style.display = 'inline-block';
+    if (completeBtn) completeBtn.style.display = 'none';
+    
+    // Wait a moment for DOM to update
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Start video preview - work with existing HTML structure
+    let preview = document.getElementById('cameraPreview');
     const statusText = document.getElementById('captureStatus');
     
-    if (preview) {
-        console.log('📹 Setting up camera preview...');
+    console.log('Looking for cameraPreview element...');
+    console.log('Preview element:', preview);
+    
+    // If cameraPreview doesn't exist, use the video element or create an img element
+    if (!preview) {
+        console.log('❌ cameraPreview not found, looking for video element...');
+        const videoElement = document.getElementById('video');
+        const videoContainer = document.querySelector('.video-container');
         
-        try {
-            // Get camera config to determine stream URL
-            const configResponse = await fetch('/api/enrollment/camera_config');
-            let streamUrl;
+        if (videoContainer) {
+            console.log('📹 Creating img element for camera stream...');
             
-            if (configResponse.ok) {
-                const config = await configResponse.json();
-                const cameraChoice = config.camera_choice;
-                
-                console.log('Camera choice:', cameraChoice);
-                
-                // If camera is HTTP URL, use it directly (laptop camera server)
-                if (typeof cameraChoice === 'string' && cameraChoice.startsWith('http')) {
-                    streamUrl = cameraChoice;
-                    console.log('✅ Using laptop camera:', streamUrl);
-                } else {
-                    // Use Pi's preview stream
-                    streamUrl = `${window.location.origin}/api/enrollment/preview_stream?t=${Date.now()}`;
-                    console.log('✅ Using Pi camera stream');
-                }
-            } else {
-                // Fallback to Pi stream
-                streamUrl = `${window.location.origin}/api/enrollment/preview_stream?t=${Date.now()}`;
-                console.log('Using fallback stream');
-            }
+            // Create img element for MJPEG stream
+            preview = document.createElement('img');
+            preview.id = 'cameraPreview';
+            preview.alt = 'Camera stream';
+            preview.style.cssText = 'width: 100%; height: auto; max-width: 640px; display: block; border-radius: 8px;';
             
-            // Set video source (same as attendance monitoring)
-            preview.src = streamUrl;
-            console.log('Stream URL set:', streamUrl);
+            // Clear video container and add img
+            videoContainer.innerHTML = '';
+            videoContainer.appendChild(preview);
             
-            if (statusText) statusText.textContent = 'Camera active - capturing faces...';
-            
-        } catch (error) {
-            console.error('Error setting up camera:', error);
-            if (statusText) statusText.textContent = 'Camera setup error';
+            console.log('✅ Created camera preview element');
+        } else {
+            console.error('❌ No video container found!');
+            return;
         }
-    } else {
-        console.error('❌ Camera preview element not found!');
+    }
+    
+    if (preview) {
+        console.log('📹 Loading camera stream...');
+        
+        // Make sure the preview is visible (in case it was hidden by reset)
+        preview.style.display = 'block';
+        preview.style.visibility = 'visible';
+        
+        // Direct laptop camera server URL
+        const streamUrl = 'http://10.237.134.196:5001/video';
+        
+        preview.src = streamUrl;
+        console.log('✅ Camera stream URL:', streamUrl);
+        
+        if (statusText) statusText.textContent = 'Camera active - capturing faces...';
+        
+        preview.onerror = () => {
+            console.error('❌ Failed to load camera stream from:', streamUrl);
+            if (statusText) statusText.textContent = 'Camera stream unavailable - check laptop server';
+        };
+        
+        preview.onload = () => {
+            console.log('✅ Camera stream loaded successfully');
+        };
     }
     
     // Update progress display
