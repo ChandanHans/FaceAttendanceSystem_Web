@@ -159,18 +159,17 @@ async function startServerSideCapture() {
     // Wait a moment for DOM to update
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Start video preview - work with existing HTML structure
+    // Start video preview from Pi's camera
     let preview = document.getElementById('cameraPreview');
     const statusText = document.getElementById('captureStatus');
     
     console.log('Looking for cameraPreview element...');
     console.log('Preview element:', preview);
     
-    // If cameraPreview doesn't exist, use the video element or create an img element
+    // If cameraPreview doesn't exist, create an img element
     if (!preview) {
-        console.log('❌ cameraPreview not found, looking for video element...');
-        const videoElement = document.getElementById('video');
-        const videoContainer = document.querySelector('.video-container');
+        console.log('❌ cameraPreview not found, creating element...');
+        const videoContainer = document.querySelector('.video-container') || document.querySelector('.camera-container');
         
         if (videoContainer) {
             console.log('📹 Creating img element for camera stream...');
@@ -193,14 +192,14 @@ async function startServerSideCapture() {
     }
     
     if (preview) {
-        console.log('📹 Loading camera stream...');
+        console.log('📹 Loading camera stream from Pi...');
         
         // Make sure the preview is visible (in case it was hidden by reset)
         preview.style.display = 'block';
         preview.style.visibility = 'visible';
         
-        // Direct laptop camera server URL
-        const streamUrl = 'http://10.237.134.196:5001/video';
+        // Use Pi's preview stream endpoint with physical camera
+        const streamUrl = `${window.location.origin}/api/enrollment/preview_stream?t=${Date.now()}`;
         
         preview.src = streamUrl;
         console.log('✅ Camera stream URL:', streamUrl);
