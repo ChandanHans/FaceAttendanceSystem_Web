@@ -11,12 +11,73 @@ import numpy as np
 import logging
 import threading
 import queue as q
+import subprocess
+import platform
 
 enrollment_bp = Blueprint('enrollment', __name__, url_prefix='/api/enrollment')
 
 # Global storage for ongoing enrollment sessions
 enrollment_sessions = {}
 face_engine = None
+
+def get_pi_camera():
+    """
+    Helper function to open camera on Raspberry Pi 5.
+    Pi 5 requires libcamera backend.
+    """
+    # Try Picamera2 first (recommended for Pi 5)
+    try:
+        from picamera2 import Picamera2
+        logging.info("Using Picamera2 for camera access")
+        picam2 = Picamera2()
+        config = picam2.create_preview_configuration(main={"size": (640, 480)})
+        picam2.configure(config)
+        picam2.start()
+        return picam2, 'picamera2'
+    except ImportError:
+        logging.warning("Picamera2 not available, trying OpenCV with CAP_V4L2")
+    except Exception as e:
+        logging.error(f"Picamera2 initialization failed: {e}")
+    
+    # Try OpenCV with V4L2 backend
+    try:
+        cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+        if cap.isOpened():
+            logging.info("Using OpenCV with CAP_V4L2")
+            return cap, 'opencv'
+    except:
+        pass
+    
+    # Try regular OpenCV (fallback)
+    cap = cv2.VideoCapture(0)
+    if cap.isOpened():
+        logging.info("Using OpenCV standard backend")
+        return cap, 'opencv'
+    
+    return None, None
+
+def capture_frame_from_camera(camera_obj, camera_type):
+    """
+    Capture a frame from the camera object
+    """
+    if camera_type == 'picamera2':
+        # Picamera2 capture
+        frame = camera_obj.capture_array()
+        # Convert RGB to BGR for OpenCV
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        return True, frame
+    else:
+        # OpenCV capture
+        return camera_obj.read()
+
+def release_camera(camera_obj, camera_type):
+    """
+    Release the camera object
+    """
+    if camera_type == 'picamera2':
+        camera_obj.stop()
+    else:
+        camera_obj.release()
 
 def init_enrollment_routes(recognition_engine: FaceRecognitionEngine):
     """Initialize routes with face recognition engine"""
@@ -233,14 +294,22 @@ def capture_server():
         if isinstance(camera_src, str) and camera_src.isdigit():
             camera_src = int(camera_src)
         
-        # Open camera
-        cap = cv2.VideoCapture(camera_src)
-        if not cap.isOpened():
-            return jsonify({'error': 'Failed to open server camera'}), 500
+        # Open camera - use Pi 5 compatible method
+        if camera_src == 0:
+            # Physical camera - use Pi camera helper
+            cap, cam_type = get_pi_camera()
+            if not cap:
+                return jsonify({'error': 'Failed to open camera. For Pi 5, install: sudo apt install -y python3-picamera2'}), 500
+        else:
+            # Network stream
+            cap = cv2.VideoCapture(camera_src)
+            cam_type = 'opencv'
+            if not cap.isOpened():
+                return jsonify({'error': 'Failed to open camera stream'}), 500
         
         # Capture frame
-        ret, frame = cap.read()
-        cap.release()
+        ret, frame = capture_frame_from_camera(cap, cam_type)
+        release_camera(cap, cam_type)
         
         if not ret or frame is None:
             return jsonify({'error': 'Failed to capture frame'}), 500
@@ -303,14 +372,22 @@ def preview_stream():
         if isinstance(camera_src, str) and camera_src.isdigit():
             camera_src = int(camera_src)
         
-        cap = cv2.VideoCapture(camera_src)
-        if not cap.isOpened():
-            logging.error(f"Failed to open camera for preview: {camera_src}")
-            return
+        # Open camera - use Pi 5 compatible method
+        if camera_src == 0:
+            cap, cam_type = get_pi_camera()
+            if not cap:
+                logging.error("Failed to open Pi camera for preview")
+                return
+        else:
+            cap = cv2.VideoCapture(camera_src)
+            cam_type = 'opencv'
+            if not cap.isOpened():
+                logging.error(f"Failed to open camera stream for preview: {camera_src}")
+                return
         
         try:
             while True:
-                ret, frame = cap.read()
+                ret, frame = capture_frame_from_camera(cap, cam_type)
                 if not ret:
                     break
                 
@@ -323,7 +400,7 @@ def preview_stream():
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
         finally:
-            cap.release()
+            release_camera(cap, cam_type)
     
     return Response(generate_preview(),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
