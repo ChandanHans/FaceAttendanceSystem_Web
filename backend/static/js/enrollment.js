@@ -142,7 +142,7 @@ async function startEnrollment() {
     }
 }
 
-function startServerSideCapture() {
+async function startServerSideCapture() {
     console.log('🎥 Starting server-side camera capture...');
     
     // Show capture panel and hide form
@@ -153,13 +153,60 @@ function startServerSideCapture() {
     
     // Start video preview from server stream
     const preview = document.getElementById('cameraPreview');
+    const statusText = document.getElementById('captureStatus');
+    
     if (preview) {
-        preview.src = `${window.location.origin}/api/enrollment/preview_stream?session_id=${sessionId}&t=${Date.now()}`;
-        preview.style.display = 'block';
-        preview.onerror = () => {
-            console.warn('Video preview not available, continuing with capture');
-            preview.style.display = 'none';
-        };
+        console.log('Setting up camera preview stream...');
+        
+        try {
+            // Try to get camera config to determine the right stream URL
+            const configResponse = await fetch('/api/enrollment/camera_config');
+            let streamUrl;
+            
+            if (configResponse.ok) {
+                const config = await configResponse.json();
+                const cameraChoice = config.camera_choice;
+                
+                console.log('Camera choice from config:', cameraChoice);
+                
+                // If camera_choice is an HTTP URL, use it directly (laptop camera server)
+                if (typeof cameraChoice === 'string' && cameraChoice.startsWith('http')) {
+                    streamUrl = cameraChoice;
+                    console.log('Using direct camera URL:', streamUrl);
+                } else {
+                    // Otherwise use the Pi's preview stream endpoint
+                    streamUrl = `${window.location.origin}/api/enrollment/preview_stream?session_id=${sessionId}&t=${Date.now()}`;
+                    console.log('Using Pi preview stream:', streamUrl);
+                }
+            } else {
+                // Fallback to Pi preview stream
+                streamUrl = `${window.location.origin}/api/enrollment/preview_stream?session_id=${sessionId}&t=${Date.now()}`;
+                console.log('Using fallback preview stream:', streamUrl);
+            }
+            
+            preview.src = streamUrl;
+            preview.style.display = 'block';
+            
+            preview.onload = () => {
+                console.log('✅ Camera preview loaded successfully');
+                if (statusText) statusText.textContent = 'Camera ready - capturing faces...';
+            };
+            
+            preview.onerror = (e) => {
+                console.error('❌ Video preview error:', e);
+                console.warn('Video preview not available, continuing with capture');
+                preview.style.display = 'none';
+                if (statusText) statusText.textContent = 'Camera preview unavailable - capture continues in background';
+            };
+        } catch (error) {
+            console.error('Error getting camera config:', error);
+            // Fallback to standard preview endpoint
+            const streamUrl = `${window.location.origin}/api/enrollment/preview_stream?session_id=${sessionId}&t=${Date.now()}`;
+            preview.src = streamUrl;
+            preview.style.display = 'block';
+        }
+    } else {
+        console.error('❌ cameraPreview element not found!');
     }
     
     // Update progress display

@@ -1,13 +1,13 @@
 {
     "wifi_ssid": "ChandanHans",
     "wifi_password": "1234567890",
-    "camera_choice": "http://CHANDAN-OMEN:5001/video",
+    "camera_choice": "http://10.237.134.196:5001/video",
     "audio_choice": true,
-    "camera_ip": "http://CHANDAN-OMEN:5001/video", 
+    "camera_ip": "http://10.237.134.196:5001/video", 
     "camera_ip_examples": {
         "rtsp": "rtsp://username:password@192.168.1.100:554/stream1",
-        "http": "http://192.168.1.100:8080/video",
-        "laptop": "http://CHANDAN-OMEN:5001/video"
+        "laptop": "http://10.237.134.196:5001/video",
+        "http": "http://192.168.1.100:8080/video"
     },
     "scale": 0.5,
     "max_checkin": "00:00:00",
@@ -17,7 +17,7 @@
     "face_angle_threshold": 7.0,
     "recognition_tolerance": 0.42,
     "recognition_threshold": 0.6,
-    "frame_skip": 2,
+    "frame_skip": 4,
     "lcd_display": {
         "enabled": true,
         "i2c_expander": "PCF8574",

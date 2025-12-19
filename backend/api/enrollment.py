@@ -268,6 +268,24 @@ def capture_server():
         logging.error(f"Server capture error: {e}")
         return jsonify({'error': f'Server capture failed: {str(e)}'}), 500
 
+@enrollment_bp.route('/camera_config')
+def get_camera_config():
+    """Get camera configuration for client-side preview"""
+    import json
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    config_path = os.path.join(project_root, 'config', 'config.json')
+    
+    try:
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        
+        return jsonify({
+            'camera_choice': config.get('camera_choice', 0)
+        }), 200
+    except Exception as e:
+        logging.error(f"Error reading camera config: {e}")
+        return jsonify({'error': 'Could not read camera config'}), 500
+
 @enrollment_bp.route('/preview_stream')
 def preview_stream():
     """Stream video preview during enrollment"""

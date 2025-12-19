@@ -38,45 +38,79 @@ def get_local_ip():
     except Exception:
         return "127.0.0.1"
 
-def get_camera():
-    """Get or initialize the camera"""
+def init_camera():
+    """Initialize the camera at startup"""
     global camera
-    if camera is None:
-        camera = cv2.VideoCapture(0)  # Use default laptop camera
-        if not camera.isOpened():
-            logging.error("Failed to open camera!")
-            return None
-        # Set camera properties for better performance
-        camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        camera.set(cv2.CAP_PROP_FPS, 30)
-        logging.info("Camera initialized successfully")
+    logging.info("🔍 Searching for available camera...")
+    
+    # Try different camera indices and backends
+    for index in [0, 1, 2]:
+        logging.info(f"Trying camera index {index}...")
+        cam = cv2.VideoCapture(index, cv2.CAP_DSHOW)  # Use DirectShow backend on Windows
+        
+        if cam.isOpened():
+            # Test if we can actually read a frame
+            ret, frame = cam.read()
+            if ret:
+                logging.info(f"✅ Camera {index} working! Resolution: {frame.shape[1]}x{frame.shape[0]}")
+                
+                # Set camera properties for better performance
+                cam.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                cam.set(cv2.CAP_PROP_FPS, 30)
+                cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce buffer to minimize lag
+                
+                camera = cam
+                logging.info("✅ Camera initialized and ready!")
+                return True
+            else:
+                logging.warning(f"Camera {index} opened but can't read frames")
+                cam.release()
+        else:
+            logging.debug(f"Camera {index} not available")
+    
+    logging.error("❌ No working camera found!")
+    return False
+
+def get_camera():
+    """Get the initialized camera"""
     return camera
 
 def generate_frames():
     """Generate camera frames for streaming"""
     cam = get_camera()
-    if cam is None:
-        logging.error("Camera not available")
+    if cam is None or not cam.isOpened():
+        logging.error("❌ Camera not available for streaming")
+        # Send a simple error frame
+        yield (b'--frame\r\n'
+               b'Content-Type: text/plain\r\n\r\n'
+               b'Camera not available\r\n')
         return
     
+    frame_count = 0
     while True:
         success, frame = cam.read()
         if not success:
-            logging.warning("Failed to read frame from camera")
-            break
-        else:
-            # Encode frame as JPEG
-            ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
-            if not ret:
-                continue
-            
-            # Convert to bytes
-            frame_bytes = buffer.tobytes()
-            
-            # Yield frame in multipart format
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            logging.warning(f"Failed to read frame from camera (frame #{frame_count})")
+            continue  # Try next frame instead of breaking
+        
+        frame_count += 1
+        
+        # Encode frame as JPEG with good quality
+        ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
+        if not ret:
+            continue
+        
+        # Convert to bytes
+        frame_bytes = buffer.tobytes()
+        
+        # Log progress periodically
+        if frame_count % 100 == 0:
+            logging.info(f"📹 Streamed {frame_count} frames")
+        
+        # Yield frame in multipart format
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
 @app.route('/')
 def index():
@@ -189,6 +223,16 @@ if __name__ == '__main__':
         logging.info(f"🌐 Access at: http://{local_ip}:5001")
         logging.info(f"📹 Stream URL: http://{local_ip}:5001/video")
         logging.info("=" * 60)
+        
+        # Initialize camera BEFORE starting server
+        logging.info("\n🔄 Initializing camera...")
+        if not init_camera():
+            logging.error("\n❌ Failed to initialize camera. Please check:")
+            logging.error("   1. Camera is not being used by another application")
+            logging.error("   2. Camera permissions are granted")
+            logging.error("   3. Camera drivers are installed")
+            logging.info("\nServer will start anyway, but video won't work.\n")
+        
         logging.info("\n💡 Keep this window open while using the camera!\n")
         
         # Run the server
