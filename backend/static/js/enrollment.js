@@ -151,17 +151,15 @@ async function startServerSideCapture() {
     document.getElementById('cancelBtn').style.display = 'inline-block';
     document.getElementById('completeBtn').style.display = 'none';
     
-    // Start video preview from server stream
+    // Start video preview - simple approach like attendance monitoring
     const preview = document.getElementById('cameraPreview');
     const statusText = document.getElementById('captureStatus');
     
     if (preview) {
-        console.log('=== Setting up camera preview stream ===');
-        console.log('Preview element:', preview);
-        console.log('Initial styles:', preview.style.cssText);
+        console.log('📹 Setting up camera preview...');
         
         try {
-            // Try to get camera config to determine the right stream URL
+            // Get camera config to determine stream URL
             const configResponse = await fetch('/api/enrollment/camera_config');
             let streamUrl;
             
@@ -169,76 +167,35 @@ async function startServerSideCapture() {
                 const config = await configResponse.json();
                 const cameraChoice = config.camera_choice;
                 
-                console.log('Camera choice from config:', cameraChoice);
+                console.log('Camera choice:', cameraChoice);
                 
-                // If camera_choice is an HTTP URL, use it directly (laptop camera server)
+                // If camera is HTTP URL, use it directly (laptop camera server)
                 if (typeof cameraChoice === 'string' && cameraChoice.startsWith('http')) {
                     streamUrl = cameraChoice;
-                    console.log('✅ Using direct camera URL:', streamUrl);
+                    console.log('✅ Using laptop camera:', streamUrl);
                 } else {
-                    // Otherwise use the Pi's preview stream endpoint
-                    streamUrl = `${window.location.origin}/api/enrollment/preview_stream?session_id=${sessionId}&t=${Date.now()}`;
-                    console.log('✅ Using Pi preview stream:', streamUrl);
+                    // Use Pi's preview stream
+                    streamUrl = `${window.location.origin}/api/enrollment/preview_stream?t=${Date.now()}`;
+                    console.log('✅ Using Pi camera stream');
                 }
             } else {
-                // Fallback to Pi preview stream
-                streamUrl = `${window.location.origin}/api/enrollment/preview_stream?session_id=${sessionId}&t=${Date.now()}`;
-                console.log('⚠️ Using fallback preview stream:', streamUrl);
+                // Fallback to Pi stream
+                streamUrl = `${window.location.origin}/api/enrollment/preview_stream?t=${Date.now()}`;
+                console.log('Using fallback stream');
             }
             
-            // Remove any hidden attributes and force visibility
-            preview.removeAttribute('hidden');
-            preview.style.display = 'block';
-            preview.style.visibility = 'visible';
-            preview.style.opacity = '1';
-            
-            // Set the source
+            // Set video source (same as attendance monitoring)
             preview.src = streamUrl;
+            console.log('Stream URL set:', streamUrl);
             
-            console.log('✅ Preview configured:');
-            console.log('  - src:', preview.src);
-            console.log('  - display:', preview.style.display);
-            console.log('  - visibility:', preview.style.visibility);
-            
-            // Verify visibility after a moment
-            setTimeout(() => {
-                const computed = window.getComputedStyle(preview);
-                console.log('📊 Computed styles after 500ms:');
-                console.log('  - display:', computed.display);
-                console.log('  - visibility:', computed.visibility);
-                console.log('  - opacity:', computed.opacity);
-                console.log('  - width:', computed.width);
-                console.log('  - height:', computed.height);
-                console.log('  - naturalWidth:', preview.naturalWidth);
-                console.log('  - naturalHeight:', preview.naturalHeight);
-                
-                if (statusText) statusText.textContent = 'Camera active - capturing faces...';
-            }, 500);
-            
-            preview.onerror = (e) => {
-                console.error('❌ Video preview ERROR:', e);
-                console.error('  - src:', preview.src);
-                console.error('  - readyState:', preview.complete);
-                if (statusText) statusText.textContent = 'Camera preview unavailable - capture continues in background';
-            };
-            
-            preview.onload = () => {
-                console.log('✅ Preview onload fired!');
-            };
+            if (statusText) statusText.textContent = 'Camera active - capturing faces...';
             
         } catch (error) {
-            console.error('❌ Error getting camera config:', error);
-            // Fallback to standard preview endpoint
-            const streamUrl = `${window.location.origin}/api/enrollment/preview_stream?session_id=${sessionId}&t=${Date.now()}`;
-            preview.removeAttribute('hidden');
-            preview.style.display = 'block';
-            preview.style.visibility = 'visible';
-            preview.style.opacity = '1';
-            preview.src = streamUrl;
-            console.log('✅ Using fallback stream URL:', streamUrl);
+            console.error('Error setting up camera:', error);
+            if (statusText) statusText.textContent = 'Camera setup error';
         }
     } else {
-        console.error('❌ cameraPreview element NOT FOUND!');
+        console.error('❌ Camera preview element not found!');
     }
     
     // Update progress display
