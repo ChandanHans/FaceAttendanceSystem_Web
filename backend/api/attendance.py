@@ -12,6 +12,7 @@ attendance_bp = Blueprint('attendance', __name__, url_prefix='/api/attendance')
 
 # Global variables for video streaming
 video_capture = None
+video_capture_type = None  # 'picamera2' or 'opencv'
 video_thread = None
 video_queue = queue.Queue(maxsize=2)
 is_streaming = False
@@ -19,6 +20,65 @@ recognition_engine = None
 attendance_queue = queue.Queue()
 monitoring_start_time = None
 is_initializing = False
+
+def get_pi_camera():
+    """
+    Helper function to open camera on Raspberry Pi 5.
+    Pi 5 requires libcamera backend.
+    """
+    # Try Picamera2 first (recommended for Pi 5)
+    try:
+        from picamera2 import Picamera2
+        logging.info("Using Picamera2 for camera access")
+        picam2 = Picamera2()
+        config = picam2.create_preview_configuration(main={"size": (640, 480)})
+        picam2.configure(config)
+        picam2.start()
+        return picam2, 'picamera2'
+    except ImportError:
+        logging.warning("Picamera2 not available, trying OpenCV with CAP_V4L2")
+    except Exception as e:
+        logging.error(f"Picamera2 initialization failed: {e}")
+    
+    # Try OpenCV with V4L2 backend
+    try:
+        cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+        if cap.isOpened():
+            logging.info("Using OpenCV with CAP_V4L2")
+            return cap, 'opencv'
+    except:
+        pass
+    
+    # Try regular OpenCV (fallback)
+    cap = cv2.VideoCapture(0)
+    if cap.isOpened():
+        logging.info("Using OpenCV standard backend")
+        return cap, 'opencv'
+    
+    return None, None
+
+def capture_frame_from_camera(camera_obj, camera_type):
+    """
+    Capture a frame from the camera object
+    """
+    if camera_type == 'picamera2':
+        # Picamera2 capture
+        frame = camera_obj.capture_array()
+        # Convert RGB to BGR for OpenCV
+        frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        return True, frame
+    else:
+        # OpenCV capture
+        return camera_obj.read()
+
+def release_camera(camera_obj, camera_type):
+    """
+    Release the camera object
+    """
+    if camera_type == 'picamera2':
+        camera_obj.stop()
+    else:
+        camera_obj.release()
 
 def init_attendance_routes(face_engine: FaceRecognitionEngine):
     """Initialize routes with face recognition engine"""
@@ -67,17 +127,27 @@ def start_monitoring(camera_source = 0):
 
 def video_capture_thread(camera_source):
     """Background thread for capturing video frames"""
-    global video_capture, is_streaming, video_queue, is_initializing
+    global video_capture, video_capture_type, is_streaming, video_queue, is_initializing
     
-    video_capture = cv2.VideoCapture(camera_source)
-    if not video_capture or not video_capture.isOpened():
-        logging.error(f"Failed to open camera source {camera_source}")
-        is_initializing = False
-        is_streaming = False
-        return
+    # Open camera - use Pi 5 compatible method
+    if camera_source == 0:
+        video_capture, video_capture_type = get_pi_camera()
+        if not video_capture:
+            logging.error("Failed to open Pi camera. Install picamera2: sudo apt install -y python3-picamera2")
+            is_initializing = False
+            is_streaming = False
+            return
+    else:
+        video_capture = cv2.VideoCapture(camera_source)
+        video_capture_type = 'opencv'
+        if not video_capture or not video_capture.isOpened():
+            logging.error(f"Failed to open camera source {camera_source}")
+            is_initializing = False
+            is_streaming = False
+            return
     
     while is_streaming:
-        ret, frame = video_capture.read()
+        ret, frame = capture_frame_from_camera(video_capture, video_capture_type)
         if ret:
             # Process frame for face recognition
             annotated_frame, detected_persons = recognition_engine.process_frame_for_attendance(frame)
@@ -100,7 +170,7 @@ def video_capture_thread(camera_source):
                     video_queue.put(buffer.tobytes())
     
     if video_capture:
-        video_capture.release()
+        release_camera(video_capture, video_capture_type)
         video_capture = None
     is_initializing = False
 
@@ -122,16 +192,29 @@ def test_camera():
     camera_source = data.get('camera_source', 0)
     
     try:
-        cap = cv2.VideoCapture(camera_source)
-        if cap.isOpened():
-            ret, frame = cap.read()
+        # Use Pi 5 compatible method for camera 0
+        if camera_source == 0:
+            cap, cam_type = get_pi_camera()
+            if cap:
+                ret, frame = capture_frame_from_camera(cap, cam_type)
+                release_camera(cap, cam_type)
+                if ret and frame is not None:
+                    logging.info(f"✅ Pi camera is available")
+                    return jsonify({'available': True, 'source': camera_source, 'type': cam_type}), 200
+            logging.info(f"❌ Pi camera not available")
+            return jsonify({'available': False, 'source': camera_source}), 200
+        else:
+            # Network streams
+            cap = cv2.VideoCapture(camera_source)
+            if cap.isOpened():
+                ret, frame = cap.read()
+                cap.release()
+                if ret and frame is not None:
+                    logging.info(f"✅ Camera {camera_source} is available")
+                    return jsonify({'available': True, 'source': camera_source}), 200
             cap.release()
-            if ret and frame is not None:
-                logging.info(f"✅ Camera {camera_source} is available")
-                return jsonify({'available': True, 'source': camera_source}), 200
-        cap.release()
-        logging.info(f"❌ Camera {camera_source} not available")
-        return jsonify({'available': False, 'source': camera_source}), 200
+            logging.info(f"❌ Camera {camera_source} not available")
+            return jsonify({'available': False, 'source': camera_source}), 200
     except Exception as e:
         logging.error(f"Camera test error for {camera_source}: {e}")
         return jsonify({'available': False, 'source': camera_source, 'error': str(e)}), 200
@@ -174,7 +257,7 @@ def stop_attendance():
         video_thread.join(timeout=2)
     
     if video_capture:
-        video_capture.release()
+        release_camera(video_capture, video_capture_type)
         video_capture = None
     
     # Clear queues
